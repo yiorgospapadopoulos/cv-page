@@ -3,6 +3,7 @@ import '@fontsource-variable/fraunces/opsz.css';
 import '@fontsource-variable/jetbrains-mono';
 import '../styles/tokens.css';
 import '../styles/global.css';
+import { skipLink } from '../lib/site';
 
 interface Props {
   title: string;
@@ -43,6 +44,9 @@ const imageUrl =
     </script>
   </head>
   <body>
+    <a class="skip-link" href={`#${skipLink.target}`}>
+      {skipLink.label}
+    </a>
     <slot />
   </body>
 </html>

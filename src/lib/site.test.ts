@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { links, mailto, ownerName } from './site';
+import { links, mailto, ownerName, skipLink } from './site';
 
 describe('site config', () => {
   it('exposes the owner name', () => {
@@ -12,6 +12,15 @@ describe('site config', () => {
     );
     expect(links.github).toBe('https://github.com/yiorgospapadopoulos');
     expect(links.email).toBe('giorgospapadopoulos002@yahoo.com');
+  });
+});
+
+describe('skip link', () => {
+  it('targets the main landmark with a plain label', () => {
+    expect(skipLink).toEqual({
+      label: 'Skip to main content',
+      target: 'main',
+    });
   });
 });
 
