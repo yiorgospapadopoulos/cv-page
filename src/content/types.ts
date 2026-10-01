@@ -1,0 +1,94 @@
+export type ProjectKind = 'research' | 'case-study';
+export type ProjectVisibility = 'public' | 'private';
+
+export interface ProfileLinks {
+  linkedinUrl: string;
+  githubUrl: string;
+  email: string;
+}
+
+export interface Hero {
+  intro: string;
+  moreLabel: string;
+  current: string[];
+}
+
+export interface Language {
+  name: string;
+  level: string;
+}
+
+export interface About {
+  paragraphs: string[];
+  languages: Language[];
+}
+
+export interface Badge {
+  name: string;
+  role: string;
+  line: string;
+  chips: string[];
+  pass: string;
+  strap: string;
+}
+
+export interface Project {
+  slug: string;
+  title: string;
+  tagline: string;
+  kind: ProjectKind;
+  visibility: ProjectVisibility;
+  org?: string;
+  repoUrl?: string;
+  repoLabel?: string;
+  summary: string;
+  highlights: string[];
+  metrics: string[];
+  stack: string[];
+  sketch: string[];
+}
+
+export interface ExperienceEntry {
+  role: string;
+  company: string;
+  period: string;
+  points: string[];
+}
+
+export interface StackGroup {
+  label: string;
+  items: string[];
+}
+
+export interface EducationEntry {
+  title: string;
+  institution: string;
+  period: string;
+  details?: string[];
+}
+
+export interface Footer {
+  closing: string;
+  text: string;
+  cvLabel: string;
+  cvPath: string;
+}
+
+export interface TerminalCommand {
+  name: string;
+  description: string;
+}
+
+export interface Profile {
+  links: ProfileLinks;
+  hero: Hero;
+  about: About;
+  badge: Badge;
+  projects: Project[];
+  experience: ExperienceEntry[];
+  stackGroups: StackGroup[];
+  education: EducationEntry[];
+  certifications: string[];
+  footer: Footer;
+  commands: TerminalCommand[];
+}
