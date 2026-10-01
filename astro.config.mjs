@@ -23,5 +23,6 @@ export default defineConfig({
   output: 'static',
   integrations: [react()],
   devToolbar: { enabled: false },
+  build: { inlineStylesheets: 'always' },
   vite: { plugins: [rapierWasmAsset] },
 });

@@ -1,8 +1,9 @@
 ---
-import '@fontsource-variable/fraunces/opsz.css';
-import '@fontsource-variable/jetbrains-mono';
+import fraunces from '@fontsource-variable/fraunces/files/fraunces-latin-opsz-normal.woff2?url';
+import jetbrainsMono from '@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url';
 import '../styles/tokens.css';
 import '../styles/global.css';
+import { fontFaceCss } from '../lib/fonts';
 import { skipLink } from '../lib/site';
 
 interface Props {
@@ -12,6 +13,10 @@ interface Props {
 }
 
 const { title, description, image = '/og.png' } = Astro.props;
+const fontCss = fontFaceCss([
+  { family: 'Fraunces Variable', url: fraunces, weight: '100 900' },
+  { family: 'JetBrains Mono Variable', url: jetbrainsMono, weight: '100 800' },
+]);
 const imageUrl =
   Astro.site === undefined ? image : new URL(image, Astro.site).href;
 ---
@@ -24,6 +29,14 @@ const imageUrl =
     <meta name="description" content={description} />
     <meta name="theme-color" content="#ffffff" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link
+      rel="preload"
+      href={fraunces}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <style is:inline set:html={fontCss}></style>
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />

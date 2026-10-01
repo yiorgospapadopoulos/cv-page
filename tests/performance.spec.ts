@@ -159,3 +159,41 @@ test.describe('largest contentful paint', () => {
     expect(result.entries.map((entry) => entry.tag)).not.toContain('CANVAS');
   });
 });
+
+test.describe('fonts and styles', () => {
+  test('preloads the heading font and ships only the latin subsets', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const fonts: string[] = [];
+    page.on('request', (request) => {
+      if (request.resourceType() === 'font') fonts.push(request.url());
+    });
+    await page.goto('/');
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    await page.waitForLoadState('networkidle');
+
+    const preload = page.locator('link[rel="preload"][as="font"]');
+    await expect(preload).toHaveCount(1);
+    await expect(preload).toHaveAttribute('type', 'font/woff2');
+    await expect(preload).toHaveAttribute('crossorigin', '');
+    expect(await preload.getAttribute('href')).toContain('fraunces-latin-');
+
+    expect(fonts.length).toBeGreaterThan(0);
+    expect(fonts.length).toBeLessThanOrEqual(2);
+    for (const url of fonts) expect(url).toMatch(/-latin-(opsz|wght)-/);
+
+    const displays = await page.evaluate(() =>
+      [...document.fonts].map((face) => face.display),
+    );
+    expect(displays).toHaveLength(2);
+    expect(new Set(displays)).toEqual(new Set(['swap']));
+  });
+
+  test('inlines the css so no stylesheet blocks the first paint', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await expect(page.locator('link[rel="stylesheet"]')).toHaveCount(0);
+  });
+});
