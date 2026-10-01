@@ -9,6 +9,7 @@ import {
 import type { Badge as BadgeContent } from '../../content/types';
 import { cardPalette } from '../../lib/badge/cardLayout';
 import { shouldRender3D, supportsWebGL } from '../../lib/badge/capability';
+import { badgeLoadMode, readLoadEnv } from '../../lib/badge/loadPolicy';
 import { computeStage, type Rect, type Stage } from '../../lib/badge/stage';
 import type { BadgeAssets } from './Lanyard';
 
@@ -112,7 +113,8 @@ export default function Badge({ badge, prompt }: Props) {
 
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const webgl = supportsWebGL(document);
+    const skip = badgeLoadMode(readLoadEnv(window)) === 'skip';
+    const webgl = !skip && supportsWebGL(document);
     const update = () =>
       setEnabled(shouldRender3D({ webgl, reducedMotion: query.matches }));
     update();
