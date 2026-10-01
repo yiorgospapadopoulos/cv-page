@@ -1,35 +1,100 @@
 # Yiorgos Papadopoulos CV page
 
-A single static page that accompanies my CV. It is built with Astro and TypeScript, and a React island is planned for an interactive 3D badge. This repository currently holds the project scaffold and its quality gates; the page content is added in later steps.
+A single static page that accompanies my CV. It introduces me in a few seconds (giant name, one-line pitch, an interactive 3D lanyard badge), then shows the evidence in terminal-styled windows: who I am, projects, experience, stack and education. At the end there is a small working terminal where a visitor can type commands such as `help`, `ls` or `cat thesis`, and a footer with my links and a CV download.
+
+It is built with Astro (a static site generator, think of it as a build step that turns templates and one data file into plain HTML) and TypeScript. The only heavy JavaScript is the 3D badge, which is loaded lazily and is optional: every visitor gets a complete page without it.
 
 ## Requirements
 
 - Node.js 26
 - npm 11
 
-## Setup
+## Run it
 
 ```sh
 npm install
-npx playwright install chromium
+npx playwright install chromium firefox webkit
+npm run dev
 ```
 
-## Commands
+`npm run dev` serves the site with hot reload at http://localhost:4321. To see exactly what visitors get, build and preview the production output:
 
-| Command                 | Purpose                                                                                     |
-| ----------------------- | ------------------------------------------------------------------------------------------- |
-| `npm run dev`           | Start the development server                                                                |
-| `npm run build`         | Build the static site into `dist/`                                                          |
-| `npm run preview`       | Serve the production build locally                                                          |
-| `npm run format`        | Format all files with Prettier                                                              |
-| `npm run format:check`  | Check formatting without changing files                                                     |
-| `npm run lint`          | Lint with ESLint, failing on any warning                                                    |
-| `npm run typecheck`     | Type check with `astro check`                                                               |
-| `npm run test`          | Run unit tests with Vitest                                                                  |
-| `npm run test:coverage` | Run unit tests and enforce 100% coverage                                                    |
-| `npm run test:e2e`      | Build the site and run Playwright tests on a desktop and a mobile viewport                  |
-| `npm run og`            | Regenerate `public/og.png` (social preview) with Playwright                                 |
-| `npm run audit`         | Fail on high severity dependency vulnerabilities                                            |
-| `npm run check`         | Run format check, lint, type check, audit, unit tests with coverage, and the build in order |
+```sh
+npm run build
+npm run preview
+```
 
-Unit tests live next to their sources as `*.test.ts`. Browser tests live in `tests/`.
+## Edit the content
+
+All page text and data live in one file, `src/content/profile.ts`. Components never contain copy of their own. The file is organised by section:
+
+| Key              | What it controls                                                       |
+| ---------------- | ---------------------------------------------------------------------- |
+| `meta`           | Page title and description (also used for the social preview)          |
+| `links`          | LinkedIn, GitHub and email                                             |
+| `hero`           | The one-liner, the `[more]` label and the two lines at the top right   |
+| `about`          | The paragraphs and languages in the `[more]` dialog and the whoami     |
+| `badge`          | Text on the 3D badge (name, role, chips, corner detail, strap)         |
+| `projects`       | Each project: title, summary, metrics, highlights, stack, ASCII sketch |
+| `experience`     | Work history, shown as a git log                                       |
+| `stackGroups`    | The stack window                                                       |
+| `education`      | The education window                                                   |
+| `certifications` | Certifications                                                         |
+| `footer`         | Closing line, pill links and the CV button                             |
+| `commands`       | The command list shown by `help` in the interactive terminal           |
+
+The data is typed (`src/content/types.ts`) and checked by `src/content/validate.ts`: no empty strings, https links, a valid email, kebab-case unique project slugs, no repository link on a private case study, and ASCII-only sketches of limited width. `npm test` runs these checks, so a typo fails loudly. Some tests also pin the current wording on purpose (for example the page title and the five project slugs), so when you change copy deliberately, update the matching expectation in `src/content/profile.test.ts`.
+
+A few strings live outside `profile.ts` because they are site chrome rather than content: the owner name, links and skip link label in `src/lib/site.ts`, and the terminal prompt, window titles, section commands and welcome lines in `src/lib/terminal.ts`. Page text is limited to the Latin character set, because only the Latin font subsets are shipped. A test fails if a character outside it is added.
+
+## Replace the CV PDF
+
+1. Copy the new file over `public/Yiorgos_Papadopoulos_CV.pdf` (keep the same name, or change `footer.cvPath` in `profile.ts` and the matching expectation in `profile.test.ts`).
+2. Compute its hash and paste it into `verifiedSha256` in `src/content/cv.test.ts`:
+
+   ```sh
+   shasum -a 256 public/Yiorgos_Papadopoulos_CV.pdf
+   ```
+
+3. Run `npm test`. The test exists so that the published PDF can only change on purpose.
+
+The CV must not contain a phone number.
+
+## Regenerate the social preview image
+
+The Open Graph image `public/og.png` (1200 by 630) is drawn from a small HTML template inside `scripts/og.mjs` using the same fonts as the site. Edit the text there if my name or role changes, then run:
+
+```sh
+npm run og
+```
+
+## Quality gates
+
+| Command                 | What it does                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------- |
+| `npm run check`         | Everything below in order: format check, lint, type check, dependency audit, unit tests, build          |
+| `npm run test:e2e`      | Builds the site and runs the browser tests on desktop Chromium, a Pixel 7 emulation, Firefox and WebKit |
+| `npm run test:coverage` | Unit tests with a 100% coverage requirement on `src/**/*.ts`                                            |
+| `npm run format`        | Rewrites files with Prettier                                                                            |
+| `npm run perf`          | Measures a production build (see below)                                                                 |
+| `npm run og`            | Regenerates the social preview image                                                                    |
+
+Both `npm run check` and `npm run test:e2e` must pass before a change is committed. Unit tests (Vitest) sit next to their sources as `*.test.ts`. Browser tests (Playwright) are in `tests/`: layout, terminals, the prompt, the footer, the badge, accessibility scans with axe-core, keyboard and skip link checks, and performance assertions.
+
+The `.astro` and `.tsx` presentation components and the 3D render loop are excluded from the coverage requirement because they are verified in a real browser instead.
+
+### Accessibility
+
+The page uses `header`, `main` and `footer` landmarks, a skip link as the first focusable element, one `h1`, and visible focus styles. Terminal text is in the accessibility tree from the start: the typing animation only changes opacity, and the animated command line is hidden from assistive technology in favour of a visually hidden copy, so a screen reader never hears half-typed commands. Focusing a link inside a terminal that has not typed yet reveals it immediately. The interactive prompt keeps its caret as the focus indicator. Reduced motion shows everything at once, and the page works without JavaScript.
+
+### Performance
+
+`npm run perf` serves `dist/` with gzip, then measures desktop and a throttled mobile profile (Fast 3G, 4x CPU) with and without the save-data hint, reporting Largest Contentful Paint, bytes transferred before the 3D scene starts, and total bytes. The hero name is the LCP element and paints without waiting for any badge code: CSS is inlined, only the Latin font subsets ship, and the heading font is preloaded.
+
+## How the 3D badge works
+
+The server-rendered page always contains a plain HTML and CSS badge (the placeholder, a gently swaying card). A small React island, `src/components/badge/Badge.tsx`, decides in the browser whether to upgrade it. The pure decision logic lives in `src/lib/badge/` and is fully unit tested: the badge is only upgraded with WebGL available and without reduced motion (`capability.ts`), never on a save-data or 2g connection, and on touch devices only after the hero has been visible for 1.5 seconds and the main thread is idle (`loadPolicy.ts`, `deferral.ts`). If all of that passes, `Scene.tsx` is loaded on demand. It draws the card faces to canvas textures, simulates the lanyard as a chain of Rapier physics joints through React Three Fiber, and fades in over the placeholder when ready. Any failure (no WebGL, lost context, load error) leaves the placeholder in place. The Rapier engine is WebAssembly; a small build plugin in `astro.config.mjs` serves it as its own `.wasm` file instead of the base64 copy inside the library, which makes the download smaller.
+
+## Deployment
+
+The build output is plain static files in `dist/`, so any static host works (GitHub Pages, Netlify, Cloudflare Pages, an S3 bucket behind a CDN, an nginx folder). Two things to check on the host: it should compress text and `.wasm` files (gzip or brotli) and serve `.wasm` as `application/wasm`. Before publishing under a real domain, set `site` in `astro.config.mjs` so the social preview image gets an absolute URL. Nothing has been deployed yet, and the domain and hosting are still undecided.
