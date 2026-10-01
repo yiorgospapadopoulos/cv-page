@@ -58,9 +58,14 @@ export function typingDelays(
   });
 }
 
+export function prefersReducedMotion(env: TypingEnv): boolean {
+  return env.matchMedia?.(reducedMotionQuery).matches ?? false;
+}
+
 export function shouldAnimate(env: TypingEnv): boolean {
-  const reduced = env.matchMedia?.(reducedMotionQuery).matches ?? false;
-  return !reduced && typeof env.IntersectionObserver === 'function';
+  return (
+    !prefersReducedMotion(env) && typeof env.IntersectionObserver === 'function'
+  );
 }
 
 export function typeText(

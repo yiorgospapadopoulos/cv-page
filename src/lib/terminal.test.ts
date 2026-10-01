@@ -6,7 +6,10 @@ import {
   projectLabel,
   promptText,
   snakeCase,
+  panelTypingMs,
   terminalSections,
+  tryIt,
+  welcomeLines,
   windowTitle,
 } from './terminal';
 
@@ -136,5 +139,23 @@ describe('projectLabel', () => {
 
   it('says private when nothing else is known', () => {
     expect(projectLabel(base)).toEqual({ text: 'private' });
+  });
+});
+
+describe('try-it chrome', () => {
+  it('names the sixth part and its panel', () => {
+    expect(tryIt.id).toBe('try');
+    expect(tryIt.heading).toBe('Try it');
+    expect(tryIt.panelHeading).toBe('Try a command');
+    expect(tryIt.inputLabel).toBe('Terminal command');
+    expect(terminalSections.map((s) => s.id)).not.toContain(tryIt.id);
+  });
+
+  it('has the two welcome lines and a quick typing speed', () => {
+    expect([...welcomeLines]).toEqual([
+      'Welcome. This terminal works.',
+      'Type help, or pick a command from the list.',
+    ]);
+    expect(panelTypingMs).toBe(18);
   });
 });

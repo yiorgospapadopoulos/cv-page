@@ -6,6 +6,7 @@ import {
   hashSeed,
   initTyping,
   observeOnce,
+  prefersReducedMotion,
   runSequence,
   shouldAnimate,
   typeText,
@@ -69,6 +70,18 @@ describe('typingDelays', () => {
       expect(Number.isInteger(delay)).toBe(true);
     }
     expect(new Set(delays).size).toBeGreaterThan(1);
+  });
+});
+
+describe('prefersReducedMotion', () => {
+  it('reads the media query and defaults to false without matchMedia', () => {
+    expect(
+      prefersReducedMotion({ matchMedia: () => ({ matches: true }) }),
+    ).toBe(true);
+    expect(
+      prefersReducedMotion({ matchMedia: () => ({ matches: false }) }),
+    ).toBe(false);
+    expect(prefersReducedMotion({})).toBe(false);
   });
 });
 

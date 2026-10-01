@@ -17,6 +17,20 @@ export const terminalSections = [
   { id: 'education', heading: 'Education', command: 'cat education.md' },
 ] as const;
 
+export const tryIt = {
+  id: 'try',
+  heading: 'Try it',
+  panelHeading: 'Try a command',
+  inputLabel: 'Terminal command',
+} as const;
+
+export const welcomeLines = [
+  'Welcome. This terminal works.',
+  'Type help, or pick a command from the list.',
+] as const;
+
+export const panelTypingMs = 18;
+
 export interface ProjectLabel {
   prefix?: string;
   text: string;
