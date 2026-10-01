@@ -28,6 +28,7 @@ npx playwright install chromium
 | `npm run test`          | Run unit tests with Vitest                                                                  |
 | `npm run test:coverage` | Run unit tests and enforce 100% coverage                                                    |
 | `npm run test:e2e`      | Build the site and run Playwright tests on a desktop and a mobile viewport                  |
+| `npm run og`            | Regenerate `public/og.png` (social preview) with Playwright                                 |
 | `npm run audit`         | Fail on high severity dependency vulnerabilities                                            |
 | `npm run check`         | Run format check, lint, type check, audit, unit tests with coverage, and the build in order |
 
