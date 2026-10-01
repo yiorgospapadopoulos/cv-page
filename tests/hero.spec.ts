@@ -12,7 +12,7 @@ test.describe('hero', () => {
     page,
   }) => {
     await expect(page.getByText(hero.intro)).toBeVisible();
-    const introduction = page.getByRole('region', { name: 'Introduction' });
+    const introduction = page.getByRole('banner');
     for (const line of hero.current) {
       await expect(introduction.getByText(line, { exact: true })).toBeVisible();
     }
@@ -53,7 +53,7 @@ test.describe('hero', () => {
 
   test('the hero fills the viewport height', async ({ page }) => {
     const heroHeight = await page
-      .locator('section.hero')
+      .locator('header.hero')
       .evaluate((el) => el.getBoundingClientRect().height);
     const viewport = page.viewportSize();
     expect(heroHeight).toBeGreaterThanOrEqual((viewport?.height ?? 0) - 1);

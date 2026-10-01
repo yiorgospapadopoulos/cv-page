@@ -10,7 +10,7 @@ const [firstName, ...rest] = ownerName.split(' ');
 const lastName = rest.join(' ');
 ---
 
-<section class="hero" aria-label="Introduction">
+<header class="hero">
   <div class="top">
     <p class="intro">
       {hero.intro}{' '}
@@ -48,7 +48,7 @@ const lastName = rest.join(' ');
   <h1 class="name">
     <span>{firstName}</span> <span>{lastName}</span>
   </h1>
-</section>
+</header>
 
 <style>
   .hero {
