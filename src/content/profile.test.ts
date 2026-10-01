@@ -85,7 +85,9 @@ describe('profile', () => {
     expect(profile.footer.closing).toBe('Building AI that people can rely on.');
     expect(profile.footer.cvLabel).toBe('Download CV');
     expect(profile.footer.copyright).toBe(`© 2026 ${ownerName}`);
-    expect(profile.footer.builtWith).toBe('Built with Astro and TypeScript');
+    expect(profile.footer.builtWith).toBe(
+      'Built with Astro, TypeScript, and React Three Fiber',
+    );
   });
 
   it('has one experience entry, five stack groups, and three education entries', () => {
