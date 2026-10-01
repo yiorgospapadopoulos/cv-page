@@ -11,6 +11,7 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${port}`,
     trace: 'on-first-retry',
+    launchOptions: { args: ['--enable-unsafe-swiftshader'] },
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
