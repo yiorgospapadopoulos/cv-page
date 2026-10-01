@@ -206,8 +206,13 @@ test.describe('the command panel', () => {
     ).toHaveAttribute('href', `mailto:${links.email}`);
   });
 
-  test.skip('cv downloads the PDF', () => {
-    // Enabled in B06 when the PDF ships in public/.
+  test('cv downloads the PDF', async ({ page }) => {
+    const download = page.waitForEvent('download');
+    await enter(page, 'cv');
+    const file = await download;
+    expect(file.suggestedFilename()).toBe('Yiorgos_Papadopoulos_CV.pdf');
+    expect(await file.failure()).toBeNull();
+    await expect(log(page)).toContainText('Downloading CV...');
   });
 });
 
