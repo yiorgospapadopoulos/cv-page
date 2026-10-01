@@ -1,0 +1,48 @@
+---
+import { profile } from '../../content/profile';
+import { snakeCase, terminalSections } from '../../lib/terminal';
+import TerminalCommand from '../terminal/TerminalCommand.astro';
+import TerminalPart from '../terminal/TerminalPart.astro';
+
+const { stackGroups } = profile;
+const section = terminalSections[3];
+---
+
+<TerminalPart id={section.id} heading={section.heading}>
+  <TerminalCommand command={section.command}>
+    {stackGroups.map((group) => (
+      <div class="group">
+        <p class="t-accent">[{snakeCase(group.label)}]</p>
+        <p>
+          items <span class="t-muted">= [</span>
+        </p>
+        <p class="items">
+          {group.items.map((item) => (
+            <>
+              <span class="item">
+                <span class="t-muted">"</span>
+                <span class="t-bright">{item}</span>
+                <span class="t-muted">",</span>
+              </span>{' '}
+            </>
+          ))}
+        </p>
+        <p class="t-muted">]</p>
+      </div>
+    ))}
+  </TerminalCommand>
+</TerminalPart>
+
+<style>
+  .group + .group {
+    margin-top: 1.25em;
+  }
+
+  .items {
+    padding-left: 2ch;
+  }
+
+  .item {
+    white-space: nowrap;
+  }
+</style>

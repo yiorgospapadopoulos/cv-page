@@ -1,0 +1,56 @@
+---
+import { profile } from '../../content/profile';
+import { fakeHash, terminalSections } from '../../lib/terminal';
+import TerminalCommand from '../terminal/TerminalCommand.astro';
+import TerminalPart from '../terminal/TerminalPart.astro';
+
+const { experience } = profile;
+const section = terminalSections[2];
+---
+
+<TerminalPart id={section.id} heading={section.heading}>
+  <TerminalCommand command={section.command}>
+    {experience.map((entry, index) => (
+      <div class="commit">
+        <p class="t-accent">
+          commit {fakeHash(`${entry.role} @ ${entry.company}`)}
+          {index === 0 && <span class="t-green"> (HEAD -&gt; main)</span>}
+        </p>
+        <p class="t-muted date">{`Date:   ${entry.period}`}</p>
+        <div class="message">
+          <p class="subject">
+            {entry.role} @ {entry.company}
+          </p>
+          <ul class="t-list">
+            {entry.points.map((text) => (
+              <li>{text}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    ))}
+  </TerminalCommand>
+</TerminalPart>
+
+<style>
+  .commit + .commit {
+    margin-top: 1.5em;
+  }
+
+  .date {
+    white-space: pre-wrap;
+  }
+
+  .message {
+    margin-top: 0.75em;
+    padding-left: 4ch;
+  }
+
+  .message > :global(* + *) {
+    margin-top: 0.5em;
+  }
+
+  .subject {
+    color: var(--term-bright);
+  }
+</style>

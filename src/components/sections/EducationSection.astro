@@ -1,0 +1,45 @@
+---
+import { profile } from '../../content/profile';
+import { dotJoin, terminalSections } from '../../lib/terminal';
+import TerminalCommand from '../terminal/TerminalCommand.astro';
+import TerminalPart from '../terminal/TerminalPart.astro';
+
+const { education, certifications } = profile;
+const section = terminalSections[4];
+---
+
+<TerminalPart id={section.id} heading={section.heading}>
+  <TerminalCommand command={section.command}>
+    {education.map((entry) => (
+      <div class="entry">
+        <p class="t-bright">{entry.title}</p>
+        <p class="t-muted">{dotJoin([entry.institution, entry.period])}</p>
+        {entry.details && (
+          <ul class="t-list">
+            {entry.details.map((text) => (
+              <li>{text}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    ))}
+    <div class="entry">
+      <p class="t-bright">certifications:</p>
+      <ul class="t-list">
+        {certifications.map((text) => (
+          <li>{text}</li>
+        ))}
+      </ul>
+    </div>
+  </TerminalCommand>
+</TerminalPart>
+
+<style>
+  .entry > :global(* + *) {
+    margin-top: 0.25em;
+  }
+
+  .entry + .entry {
+    margin-top: 1.25em;
+  }
+</style>
