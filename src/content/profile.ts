@@ -1,15 +1,22 @@
 import { links, ownerName } from '../lib/site';
 import type { Profile } from './types';
 
+const role = 'ML & LLM Systems Engineer';
+const intro =
+  'I build AI that helps people, and the backends that make it reliable.';
+
 export const profile: Profile = {
+  meta: {
+    title: `${ownerName} | ${role}`,
+    description: `${ownerName} is an ${role}. ${intro}`,
+  },
   links: {
     linkedinUrl: links.linkedin,
     githubUrl: links.github,
     email: links.email,
   },
   hero: {
-    intro:
-      'I build AI that helps people, and the backends that make it reliable.',
+    intro,
     moreLabel: '[more]',
     current: [
       'ML & LLM Systems Engineer @ Zimmerman',
@@ -30,7 +37,7 @@ export const profile: Profile = {
   },
   badge: {
     name: ownerName,
-    role: 'ML & LLM Systems Engineer',
+    role,
     line: 'MSc AI @ University of Thessaly',
     chips: ['AI/ML', 'Backend', 'LLMs'],
     pass: 'PASS #0x02 · ACCESS: ROOT',

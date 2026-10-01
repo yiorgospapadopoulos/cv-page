@@ -3,6 +3,10 @@ import { validateProfile } from './validate';
 import type { Profile } from './types';
 
 const base: Profile = {
+  meta: {
+    title: 'Some Name | Engineer',
+    description: 'Some Name is an engineer.',
+  },
   links: {
     linkedinUrl: 'https://www.linkedin.com/in/example/',
     githubUrl: 'https://github.com/example',

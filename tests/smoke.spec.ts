@@ -10,7 +10,9 @@ test('home page loads and renders the name', async ({ page }) => {
   const response = await page.goto('/');
   expect(response?.status()).toBe(200);
 
-  await expect(page).toHaveTitle('Yiorgos Papadopoulos');
+  await expect(page).toHaveTitle(
+    'Yiorgos Papadopoulos | ML & LLM Systems Engineer',
+  );
   await expect(
     page.getByRole('heading', { level: 1, name: 'Yiorgos Papadopoulos' }),
   ).toBeVisible();

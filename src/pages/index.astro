@@ -5,10 +5,9 @@ import Terminals from '../components/Terminals.astro';
 import Footer from '../components/Footer.astro';
 import MoreDialog from '../components/MoreDialog.astro';
 import { profile } from '../content/profile';
-import { ownerName } from '../lib/site';
 ---
 
-<Base title={ownerName} description={profile.hero.intro}>
+<Base title={profile.meta.title} description={profile.meta.description}>
   <main>
     <Hero />
     <Terminals />

@@ -87,7 +87,13 @@ export interface TerminalCommand {
   description: string;
 }
 
+export interface Meta {
+  title: string;
+  description: string;
+}
+
 export interface Profile {
+  meta: Meta;
   links: ProfileLinks;
   hero: Hero;
   about: About;

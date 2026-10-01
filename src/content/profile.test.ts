@@ -8,6 +8,16 @@ describe('profile', () => {
     expect(validateProfile(profile)).toEqual([]);
   });
 
+  it('has the page title and description', () => {
+    expect(profile.meta.title).toBe(
+      'Yiorgos Papadopoulos | ML & LLM Systems Engineer',
+    );
+    expect(profile.meta.description).toBe(
+      'Yiorgos Papadopoulos is an ML & LLM Systems Engineer. I build AI that helps people, and the backends that make it reliable.',
+    );
+    expect(profile.badge.role).toBe('ML & LLM Systems Engineer');
+  });
+
   it('takes the owner name and links from the site config', () => {
     expect(profile.badge.name).toBe(ownerName);
     expect(profile.links.linkedinUrl).toBe(links.linkedin);
