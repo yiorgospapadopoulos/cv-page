@@ -1,0 +1,107 @@
+---
+import '../../styles/terminal.css';
+import { windowTitle } from '../../lib/terminal';
+
+interface Props {
+  title?: string;
+}
+
+const { title = windowTitle } = Astro.props;
+---
+
+<div class="term" data-terminal>
+  <div class="bar" aria-hidden="true">
+    <span class="dots">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </span>
+    <span class="title">{title}</span>
+  </div>
+  <div class="body">
+    <slot />
+  </div>
+</div>
+
+<script>
+  import { initTyping } from '../../lib/typing';
+
+  initTyping(document, window);
+</script>
+
+<style>
+  .term {
+    overflow: hidden;
+    border-radius: 12px;
+    background: var(--term-bg);
+    color: var(--term-ink);
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.08),
+      0 18px 40px -16px rgb(0 0 0 / 0.35);
+  }
+
+  .bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 16px;
+    background: color-mix(in srgb, var(--term-ink) 7%, var(--term-bg));
+    border-bottom: 1px solid
+      color-mix(in srgb, var(--term-ink) 10%, var(--term-bg));
+  }
+
+  .dots {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    gap: 8px;
+  }
+
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .red {
+    background: #ff5f57;
+  }
+
+  .yellow {
+    background: #febc2e;
+  }
+
+  .green {
+    background: #28c840;
+  }
+
+  .title {
+    position: absolute;
+    inset: 0 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    color: var(--term-muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .body {
+    padding: 16px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-wrap: break-word;
+  }
+
+  @media (min-width: 768px) {
+    .body {
+      padding: 24px;
+      font-size: 14px;
+    }
+  }
+</style>

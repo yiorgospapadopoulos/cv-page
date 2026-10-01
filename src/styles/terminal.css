@@ -1,0 +1,55 @@
+.t-bright {
+  color: var(--term-bright);
+}
+
+.t-muted {
+  color: var(--term-muted);
+}
+
+.t-accent {
+  color: var(--term-accent);
+}
+
+.t-green {
+  color: var(--term-prompt);
+}
+
+.t-link {
+  color: var(--term-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.t-link:hover {
+  color: var(--term-bright);
+}
+
+.t-link:focus-visible {
+  outline-color: var(--term-ink);
+}
+
+.t-list li {
+  padding-left: 2ch;
+  text-indent: -2ch;
+}
+
+.t-list li::before {
+  content: '- ' / '';
+  color: var(--term-muted);
+}
+
+.cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 1.15em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--term-ink);
+  animation: term-blink 1s steps(1) infinite;
+}
+
+@keyframes term-blink {
+  50% {
+    opacity: 0;
+  }
+}

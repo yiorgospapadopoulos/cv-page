@@ -1,0 +1,73 @@
+---
+import { promptText } from '../../lib/terminal';
+
+interface Props {
+  command: string;
+  divider?: boolean;
+}
+
+const { command, divider = false } = Astro.props;
+---
+
+<div class:list={['block', { divider }]} data-block>
+  <p class="line" data-cmd-line>
+    <span class="prompt">{promptText}</span>
+    <span class="cmd" data-cmd>
+      {command}
+    </span>
+  </p>
+  <div class="out">
+    <slot />
+  </div>
+</div>
+
+<style>
+  .block + .block {
+    margin-top: 1.75em;
+  }
+
+  .block.divider {
+    padding-top: 1.75em;
+    border-top: 1px dashed
+      color-mix(in srgb, var(--term-ink) 22%, var(--term-bg));
+  }
+
+  .line {
+    margin: 0;
+  }
+
+  .prompt {
+    color: var(--term-prompt);
+  }
+
+  .cmd {
+    color: var(--term-ink);
+  }
+
+  .out {
+    margin-top: 0.5em;
+  }
+
+  .out > :global(* + *) {
+    margin-top: 0.75em;
+  }
+
+  :global(html.typing) .block:not(:global(.is-live)) {
+    visibility: hidden;
+  }
+
+  :global(html.typing) .block:not(:global(.is-out)) .out {
+    visibility: hidden;
+  }
+
+  :global(html.typing) .block.is-out .out {
+    animation: term-fade 320ms ease-out both;
+  }
+
+  @keyframes term-fade {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+</style>
