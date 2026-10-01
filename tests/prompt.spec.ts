@@ -111,20 +111,57 @@ test.describe('the live prompt', () => {
     ).toHaveAttribute('href', `mailto:${links.email}`);
   });
 
-  test('the output area scrolls inside the terminal and stays at the newest line', async ({
+  test('the output area scrolls inside a capped terminal on narrow screens and stays at the newest line', async ({
     page,
   }) => {
+    await page.setViewportSize({ width: 375, height: 900 });
     for (let i = 0; i < 6; i++) await enter(page, 'help');
     const metrics = await page.locator('#try [data-scroll]').evaluate((el) => ({
       client: el.clientHeight,
       scroll: el.scrollHeight,
       top: el.scrollTop,
     }));
-    expect(metrics.client).toBeLessThanOrEqual(520);
+    expect(metrics.client).toBeLessThanOrEqual(460);
     expect(metrics.scroll).toBeGreaterThan(metrics.client);
     expect(metrics.top + metrics.client).toBeGreaterThanOrEqual(
       metrics.scroll - 2,
     );
+  });
+
+  test('on wide screens the terminal matches the panel height and scrolls inside', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const heights = async () => ({
+      term: (await page.locator('#try .term').boundingBox())!.height,
+      panel: (await page.locator('#try .panel').boundingBox())!.height,
+    });
+    const before = await heights();
+    expect(Math.abs(before.term - before.panel)).toBeLessThanOrEqual(1);
+    expect(before.term).toBeGreaterThan(520);
+
+    for (let i = 0; i < 12; i++) await enter(page, 'help');
+    const after = await heights();
+    expect(Math.abs(after.term - after.panel)).toBeLessThanOrEqual(1);
+    const metrics = await page.locator('#try [data-scroll]').evaluate((el) => ({
+      client: el.clientHeight,
+      scroll: el.scrollHeight,
+      top: el.scrollTop,
+    }));
+    expect(metrics.scroll).toBeGreaterThan(metrics.client);
+    expect(metrics.top + metrics.client).toBeGreaterThanOrEqual(
+      metrics.scroll - 2,
+    );
+  });
+
+  test('focusing the input draws no ring around the terminal window', async ({
+    page,
+  }) => {
+    await input(page).focus();
+    const outline = await page
+      .locator('#try .term')
+      .evaluate((el) => getComputedStyle(el).outlineStyle);
+    expect(outline).toBe('none');
   });
 });
 
