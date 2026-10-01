@@ -19,7 +19,10 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...astro.configs.recommended,
-  ...astro.configs['jsx-a11y-recommended'],
+  {
+    files: ['**/*.astro'],
+    ...astro.configs['jsx-a11y-recommended'].at(-1),
+  },
   {
     files: ['**/*.tsx'],
     ...jsxA11y.flatConfigs.recommended,
