@@ -12,8 +12,9 @@ test.describe('hero', () => {
     page,
   }) => {
     await expect(page.getByText(hero.intro)).toBeVisible();
+    const introduction = page.getByRole('region', { name: 'Introduction' });
     for (const line of hero.current) {
-      await expect(page.getByText(line, { exact: true })).toBeVisible();
+      await expect(introduction.getByText(line, { exact: true })).toBeVisible();
     }
     const heading = page.getByRole('heading', { level: 1 });
     await expect(heading.getByText('Yiorgos', { exact: true })).toBeVisible();
