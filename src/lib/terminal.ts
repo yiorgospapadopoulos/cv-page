@@ -30,7 +30,7 @@ export function snakeCase(label: string): string {
     .replace(/^_+|_+$/g, '');
 }
 
-export function joinStack(items: string[]): string {
+export function dotJoin(items: string[]): string {
   return items.join(' · ');
 }
 

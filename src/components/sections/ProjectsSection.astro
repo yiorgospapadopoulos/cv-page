@@ -1,0 +1,130 @@
+---
+import { profile } from '../../content/profile';
+import { dotJoin, projectLabel, terminalSections } from '../../lib/terminal';
+import TerminalCommand from '../terminal/TerminalCommand.astro';
+import TerminalPart from '../terminal/TerminalPart.astro';
+
+const { projects } = profile;
+const section = terminalSections[1];
+---
+
+<TerminalPart id={section.id} heading={section.heading}>
+  <TerminalCommand command={section.command}>
+    <dl class="listing">
+      {projects.map((project) => (
+        <>
+          <dt class="t-accent">{project.slug}/</dt>
+          <dd class="t-muted">{project.tagline}</dd>
+        </>
+      ))}
+    </dl>
+  </TerminalCommand>
+  {projects.map((project, index) => {
+    const label = projectLabel(project);
+    return (
+      <TerminalCommand
+        command={`cat projects/${project.slug}.md`}
+        divider={index > 0}
+      >
+        <article class="project" data-project={project.slug}>
+          <div class="text">
+            <h3 class="title">{project.title}</h3>
+            <p class="t-muted">
+              {label.prefix !== undefined && `${label.prefix}, `}
+              {label.href === undefined ? (
+                label.text
+              ) : (
+                <a
+                  class="t-link"
+                  href={label.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {label.text}
+                </a>
+              )}
+            </p>
+            <p>{project.summary}</p>
+            <ul class="metrics t-accent">
+              {project.metrics.map((metric) => (
+                <li>[ {metric} ]</li>
+              ))}
+            </ul>
+            <ul class="t-list">
+              {project.highlights.map((text) => (
+                <li>{text}</li>
+              ))}
+            </ul>
+            <p class="t-muted">stack: {dotJoin(project.stack)}</p>
+          </div>
+          <pre
+            class="sketch t-muted"
+            aria-hidden="true"
+            set:text={project.sketch.join('\n')}
+          />
+        </article>
+      </TerminalCommand>
+    );
+  })}
+</TerminalPart>
+
+<style>
+  .listing {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.25em 3ch;
+    margin: 0;
+  }
+
+  .listing dd {
+    margin: 0;
+  }
+
+  .project {
+    display: grid;
+    gap: 1.25em;
+  }
+
+  .text {
+    min-width: 0;
+  }
+
+  .text > :global(* + *) {
+    margin-top: 0.75em;
+  }
+
+  .title {
+    color: var(--term-bright);
+    font-size: 1.25em;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  .metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25em 1.5ch;
+  }
+
+  .sketch {
+    min-width: 0;
+    margin: 0;
+    padding: 1em;
+    overflow-x: auto;
+    border: 1px dashed color-mix(in srgb, var(--term-ink) 22%, var(--term-bg));
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--term-ink) 4%, var(--term-bg));
+    font: inherit;
+    font-size: 0.9em;
+    line-height: 1.45;
+    white-space: pre;
+    align-self: start;
+  }
+
+  @media (min-width: 980px) {
+    .project {
+      grid-template-columns: minmax(0, 1fr) calc(40ch + 2em + 2px);
+      gap: 2.5em;
+    }
+  }
+</style>

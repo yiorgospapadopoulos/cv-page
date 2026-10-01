@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Project } from '../content/types';
 import {
   fakeHash,
-  joinStack,
+  dotJoin,
   projectLabel,
   promptText,
   snakeCase,
@@ -65,10 +65,10 @@ describe('snakeCase', () => {
   });
 });
 
-describe('joinStack', () => {
+describe('dotJoin', () => {
   it('joins items with a middle dot', () => {
-    expect(joinStack(['Python', 'Flask'])).toBe('Python · Flask');
-    expect(joinStack(['Python'])).toBe('Python');
+    expect(dotJoin(['Python', 'Flask'])).toBe('Python · Flask');
+    expect(dotJoin(['Python'])).toBe('Python');
   });
 });
 

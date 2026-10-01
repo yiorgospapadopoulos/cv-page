@@ -1,0 +1,26 @@
+---
+import AboutSection from './sections/AboutSection.astro';
+import ProjectsSection from './sections/ProjectsSection.astro';
+---
+
+<div class="terminals">
+  <div class="column">
+    <AboutSection />
+    <ProjectsSection />
+  </div>
+</div>
+
+<style>
+  .terminals {
+    padding: clamp(56px, 9vw, 112px) 0;
+    background: var(--soft);
+  }
+
+  .column {
+    display: grid;
+    gap: clamp(48px, 7vw, 80px);
+    max-width: calc(1040px + 2 * var(--gutter));
+    margin: 0 auto;
+    padding: 0 var(--gutter);
+  }
+</style>
