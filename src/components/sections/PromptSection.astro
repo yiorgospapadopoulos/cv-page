@@ -1,0 +1,275 @@
+---
+import { profile } from '../../content/profile';
+import { panelEntries } from '../../lib/commands';
+import { promptText, tryIt, welcomeLines } from '../../lib/terminal';
+import TerminalWindow from '../terminal/TerminalWindow.astro';
+
+const entries = panelEntries(profile);
+---
+
+<section id={tryIt.id} class="part" aria-labelledby={`${tryIt.id}-heading`}>
+  <h2 id={`${tryIt.id}-heading`}>{tryIt.heading}</h2>
+  <div class="layout" data-prompt>
+    <div class="screen">
+      <TerminalWindow scroll>
+        <div
+          class="log"
+          data-log
+          role="log"
+          aria-label="Terminal output"
+          aria-live="polite"
+        >
+          <div class="entry t-muted">
+            {welcomeLines.map((text) => (
+              <p class="line">{text}</p>
+            ))}
+          </div>
+        </div>
+        <form class="live" data-form method="dialog" autocomplete="off">
+          <span class="t-green prompt">{promptText}</span>
+          <span class="field">
+            <input
+              data-input
+              class="input"
+              type="text"
+              aria-label={tryIt.inputLabel}
+              autocomplete="off"
+              autocapitalize="off"
+              autocorrect="off"
+              spellcheck="false"
+              enterkeyhint="go"
+              placeholder=" "
+            />
+            <span class="idle-cursor" aria-hidden="true"></span>
+          </span>
+        </form>
+      </TerminalWindow>
+    </div>
+    <aside class="panel" aria-labelledby="try-panel-heading">
+      <h3 id="try-panel-heading">{tryIt.panelHeading}</h3>
+      <ul class="commands">
+        {entries.map((entry) => (
+          <li>
+            <button
+              type="button"
+              class="command"
+              data-command={entry.command}
+              title={entry.description}
+            >
+              <span class="name">{entry.command}</span>
+              <span class="desc">{entry.description}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  </div>
+</section>
+
+<script>
+  import { profile } from '../../content/profile';
+  import { panelTypingMs } from '../../lib/terminal';
+  import { initPrompt, browserActions } from '../../lib/promptUi';
+  import { prefersReducedMotion } from '../../lib/typing';
+
+  const root = document.querySelector<HTMLElement>('[data-prompt]');
+  if (root !== null) {
+    initPrompt(root, {
+      profile,
+      schedule: (task, delayMs) => setTimeout(task, delayMs),
+      reducedMotion: prefersReducedMotion(window),
+      actions: browserActions(window, document),
+      charMs: panelTypingMs,
+    });
+  }
+</script>
+
+<style>
+  .part {
+    scroll-margin-top: 24px;
+  }
+
+  h2 {
+    margin-bottom: 14px;
+    font-size: 28px;
+    font-variation-settings: 'opsz' 72;
+    font-weight: 450;
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+  }
+
+  .layout {
+    display: grid;
+    gap: 16px;
+  }
+
+  .screen {
+    min-width: 0;
+  }
+
+  .screen :global(.term:focus-within) {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+  }
+
+  .log {
+    display: grid;
+    gap: 0.75em;
+  }
+
+  .log :global(.line) {
+    min-height: 1.6em;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .log + .live {
+    margin-top: 0.75em;
+  }
+
+  .live {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 1ch;
+    margin: 0;
+  }
+
+  .prompt {
+    white-space: nowrap;
+  }
+
+  .field {
+    position: relative;
+    display: block;
+    flex: 1 1 8ch;
+    min-width: 0;
+  }
+
+  .input {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    outline: none;
+    background: transparent;
+    color: var(--term-ink);
+    caret-color: var(--term-ink);
+    caret-shape: block;
+    font: inherit;
+    font-variant-ligatures: none;
+    appearance: none;
+  }
+
+  .idle-cursor {
+    position: absolute;
+    top: 0.2em;
+    left: 0;
+    display: none;
+    width: 0.6em;
+    height: 1.15em;
+    background: var(--term-ink);
+    pointer-events: none;
+    animation: term-blink 1s steps(1) infinite;
+  }
+
+  .live:not(:focus-within) .input:placeholder-shown ~ .idle-cursor {
+    display: inline-block;
+  }
+
+  .panel {
+    min-width: 0;
+    order: -1;
+  }
+
+  h3 {
+    margin-bottom: 10px;
+    font-size: 17px;
+    font-variation-settings: 'opsz' 36;
+    font-weight: 450;
+    line-height: 1.2;
+  }
+
+  .commands {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .command {
+    display: block;
+    padding: 6px 12px;
+    border: 1px solid color-mix(in srgb, var(--ink) 22%, var(--soft));
+    border-radius: 999px;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease;
+  }
+
+  .command:hover {
+    border-color: var(--ink);
+    background: var(--paper);
+  }
+
+  .name {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.4;
+    font-variant-ligatures: none;
+  }
+
+  .desc {
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    h2 {
+      font-size: 34px;
+    }
+  }
+
+  @media (min-width: 900px) {
+    .layout {
+      grid-template-columns: minmax(0, 1fr) 260px;
+      gap: 28px;
+      align-items: start;
+    }
+
+    .panel {
+      order: 0;
+    }
+
+    .commands {
+      display: grid;
+      gap: 5px;
+    }
+
+    .command {
+      width: 100%;
+      padding: 7px 14px;
+      border-radius: 8px;
+    }
+
+    .name {
+      display: block;
+    }
+
+    .desc {
+      display: block;
+      color: var(--ink-muted);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+  }
+
+  @media (max-width: 599px) {
+    .input {
+      font-size: 16px;
+    }
+  }
+</style>

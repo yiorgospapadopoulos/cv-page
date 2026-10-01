@@ -4,9 +4,10 @@ import { windowTitle } from '../../lib/terminal';
 
 interface Props {
   title?: string;
+  scroll?: boolean;
 }
 
-const { title = windowTitle } = Astro.props;
+const { title = windowTitle, scroll = false } = Astro.props;
 ---
 
 <div class="term" data-terminal>
@@ -18,7 +19,7 @@ const { title = windowTitle } = Astro.props;
     </span>
     <span class="title">{title}</span>
   </div>
-  <div class="body">
+  <div class:list={['body', { scroll }]} data-scroll={scroll ? '' : undefined}>
     <slot />
   </div>
 </div>
@@ -97,6 +98,12 @@ const { title = windowTitle } = Astro.props;
     line-height: 1.6;
     font-variant-ligatures: none;
     overflow-wrap: break-word;
+  }
+
+  .body.scroll {
+    max-height: 460px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   @media (min-width: 768px) {
