@@ -22,9 +22,20 @@ const lastName = rest.join(' ');
       </button>
     </p>
     <ul class="current">
-      {hero.current.map((line) => (
-        <li>{line}</li>
-      ))}
+      {hero.current.map((line) => {
+        const [role, org] = line.split(' @ ');
+        return (
+          <li>
+            {org === undefined ? (
+              line
+            ) : (
+              <>
+                <span>{role}</span> <span class="org">@ {org}</span>
+              </>
+            )}
+          </li>
+        );
+      })}
     </ul>
   </div>
 
@@ -62,8 +73,13 @@ const lastName = rest.join(' ');
   }
 
   .current {
-    max-width: 26ch;
+    max-width: 48ch;
     text-align: right;
+    text-wrap: balance;
+  }
+
+  .org {
+    white-space: nowrap;
   }
 
   .more {
@@ -98,6 +114,26 @@ const lastName = rest.join(' ');
   @media (min-width: 768px) {
     .top {
       font-size: 14px;
+    }
+  }
+
+  @media (min-width: 860px) {
+    .hero {
+      min-height: max(100svh, calc(530px + 16.5vw));
+    }
+  }
+
+  @media (max-width: 859px) {
+    .top {
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 10px;
+    }
+
+    .intro,
+    .current {
+      max-width: none;
+      text-align: left;
     }
   }
 </style>

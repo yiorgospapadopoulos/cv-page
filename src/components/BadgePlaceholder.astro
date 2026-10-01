@@ -74,6 +74,7 @@ const nameLines = badge.name.split(' ');
   }
 
   .clip {
+    flex: none;
     width: 22px;
     height: 26px;
     border-radius: 3px 3px 6px 6px;
@@ -82,6 +83,7 @@ const nameLines = badge.name.split(' ');
   }
 
   .card {
+    flex: none;
     display: flex;
     flex-direction: column;
     width: 220px;
@@ -168,9 +170,29 @@ const nameLines = badge.name.split(' ');
     }
   }
 
-  @media (max-width: 767px) {
+  @media (max-width: 859px) {
+    .badge-slot {
+      position: relative;
+      left: auto;
+      display: flex;
+      flex: 1 1 auto;
+      justify-content: center;
+      width: auto;
+      min-height: 440px;
+      padding: 12px 0 24px;
+    }
+
     .badge {
-      scale: 0.82;
+      position: relative;
+      align-self: stretch;
+      margin-left: 0;
+    }
+
+    .strap {
+      flex: 1 1 auto;
+      min-height: 90px;
+      max-height: 300px;
+      height: auto;
     }
   }
 </style>
