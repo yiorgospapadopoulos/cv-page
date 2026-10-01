@@ -9,7 +9,16 @@ import {
 import type { Badge as BadgeContent } from '../../content/types';
 import { cardPalette } from '../../lib/badge/cardLayout';
 import { shouldRender3D, supportsWebGL } from '../../lib/badge/capability';
-import { badgeLoadMode, readLoadEnv } from '../../lib/badge/loadPolicy';
+import {
+  browserDeferDeps,
+  deferBadgeLoad,
+  whenIdle,
+} from '../../lib/badge/deferral';
+import {
+  badgeLoadMode,
+  readLoadEnv,
+  type LoadMode,
+} from '../../lib/badge/loadPolicy';
 import { computeStage, type Rect, type Stage } from '../../lib/badge/stage';
 import type { BadgeAssets } from './Lanyard';
 
@@ -78,15 +87,6 @@ function measureLayout(slot: HTMLElement, hero: HTMLElement): Layout | null {
   return { stage, slotX, slotY, anchorX, bandWidth: strap.offsetWidth };
 }
 
-function whenIdle(task: () => void): () => void {
-  if (typeof window.requestIdleCallback === 'function') {
-    const handle = window.requestIdleCallback(task, { timeout: 1500 });
-    return () => window.cancelIdleCallback(handle);
-  }
-  const handle = setTimeout(task, 200);
-  return () => clearTimeout(handle);
-}
-
 interface Props {
   badge: BadgeContent;
   prompt: string;
@@ -96,6 +96,7 @@ export default function Badge({ badge, prompt }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const [enabled, setEnabled] = useState(false);
+  const [mode, setMode] = useState<LoadMode>('idle');
   const [failed, setFailed] = useState(false);
   const [layout, setLayout] = useState<Layout | null>(null);
   const [scene, setScene] = useState<{
@@ -113,8 +114,9 @@ export default function Badge({ badge, prompt }: Props) {
 
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const skip = badgeLoadMode(readLoadEnv(window)) === 'skip';
-    const webgl = !skip && supportsWebGL(document);
+    const loadMode = badgeLoadMode(readLoadEnv(window));
+    setMode(loadMode);
+    const webgl = loadMode !== 'skip' && supportsWebGL(document);
     const update = () =>
       setEnabled(shouldRender3D({ webgl, reducedMotion: query.matches }));
     update();
@@ -136,7 +138,7 @@ export default function Badge({ badge, prompt }: Props) {
   useEffect(() => {
     if (!enabled || failed || !hasLayout || scene !== null) return;
     let cancelled = false;
-    const cancel = whenIdle(() => {
+    const load = () => {
       import('./Scene')
         .then(async (mod) => {
           const assets = await mod.prepareAssets(badge, prompt, bandWidth);
@@ -145,12 +147,17 @@ export default function Badge({ badge, prompt }: Props) {
         .catch(() => {
           if (!cancelled) setFailed(true);
         });
-    });
+    };
+    const hero = root.current?.closest<HTMLElement>('.hero');
+    const cancel =
+      mode === 'deferred' && hero
+        ? deferBadgeLoad(browserDeferDeps(window, hero), load)
+        : whenIdle(window, load);
     return () => {
       cancelled = true;
       cancel();
     };
-  }, [enabled, failed, hasLayout, scene, badge, prompt, bandWidth]);
+  }, [enabled, failed, hasLayout, scene, mode, badge, prompt, bandWidth]);
 
   useEffect(() => {
     const el = frame.current;

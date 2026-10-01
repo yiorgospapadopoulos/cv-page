@@ -57,6 +57,44 @@ test.describe('connection-aware badge', () => {
   });
 });
 
+test.describe('touch devices', () => {
+  test('wait for the hero to be visible for a moment before loading the scene', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, 'Only coarse-pointer devices defer the scene');
+    await page.goto('/', { waitUntil: 'load' });
+    test.skip(!(await hasWebGL(page)), 'WebGL is unavailable in this engine');
+    const loadedAt = Date.now();
+    await page.waitForRequest(sceneChunk, { timeout: 20_000 });
+    expect(Date.now() - loadedAt).toBeGreaterThanOrEqual(1400);
+    await expect(page.locator('#badge-slot')).toHaveAttribute(
+      'data-badge-3d',
+      'ready',
+      { timeout: 20_000 },
+    );
+  });
+
+  test('do not start the delay while the hero is off screen', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, 'Only coarse-pointer devices defer the scene');
+    const requests = sceneRequests(page);
+    await page.goto('/', { waitUntil: 'load' });
+    test.skip(!(await hasWebGL(page)), 'WebGL is unavailable in this engine');
+    await page.evaluate(() =>
+      document.querySelector('#about')?.scrollIntoView(),
+    );
+    await page.waitForTimeout(250);
+    await page.evaluate(() => document.querySelector('#try')?.scrollIntoView());
+    await page.waitForTimeout(3000);
+    expect(requests).toEqual([]);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForRequest(sceneChunk, { timeout: 20_000 });
+  });
+});
+
 test.describe('largest contentful paint', () => {
   test('is the hero text and never the badge', async ({ page }) => {
     await page.addInitScript(() => {
