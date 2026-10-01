@@ -1,0 +1,103 @@
+---
+import { profile } from '../content/profile';
+import { ownerName } from '../lib/site';
+import BadgePlaceholder from './BadgePlaceholder.astro';
+
+const { hero } = profile;
+const [firstName, ...rest] = ownerName.split(' ');
+const lastName = rest.join(' ');
+---
+
+<section class="hero" aria-label="Introduction">
+  <div class="top">
+    <p class="intro">
+      {hero.intro}{' '}
+      <button
+        type="button"
+        class="more"
+        aria-haspopup="dialog"
+        data-more-trigger
+      >
+        {hero.moreLabel}
+      </button>
+    </p>
+    <ul class="current">
+      {hero.current.map((line) => (
+        <li>{line}</li>
+      ))}
+    </ul>
+  </div>
+
+  <BadgePlaceholder />
+
+  <h1 class="name">
+    <span>{firstName}</span> <span>{lastName}</span>
+  </h1>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 100svh;
+    overflow: hidden;
+    container-type: inline-size;
+  }
+
+  .top {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    padding: var(--gutter) var(--gutter) 0;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .intro {
+    max-width: 24ch;
+  }
+
+  .current {
+    max-width: 26ch;
+    text-align: right;
+  }
+
+  .more {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink-muted);
+    font-size: inherit;
+    cursor: pointer;
+  }
+
+  .more:hover {
+    text-decoration: underline;
+  }
+
+  .name {
+    position: relative;
+    z-index: 1;
+    padding-left: 1cqw;
+    font-size: 19.3cqw;
+    font-variation-settings: 'opsz' 144;
+    font-weight: 450;
+    line-height: 0.85;
+    letter-spacing: -0.035em;
+    white-space: nowrap;
+  }
+
+  .name span {
+    display: block;
+  }
+
+  @media (min-width: 768px) {
+    .top {
+      font-size: 14px;
+    }
+  }
+</style>

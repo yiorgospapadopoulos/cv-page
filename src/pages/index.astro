@@ -1,9 +1,12 @@
 ---
 import Base from '../layouts/Base.astro';
+import Hero from '../components/Hero.astro';
 import { profile } from '../content/profile';
 import { ownerName } from '../lib/site';
 ---
 
 <Base title={ownerName} description={profile.hero.intro}>
-  <h1>{ownerName}</h1>
+  <main>
+    <Hero />
+  </main>
 </Base>
