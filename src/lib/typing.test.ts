@@ -7,6 +7,7 @@ import {
   initTyping,
   observeOnce,
   prefersReducedMotion,
+  revealTerminal,
   runSequence,
   shouldAnimate,
   typeText,
@@ -294,6 +295,64 @@ describe('buildSteps and animateTerminal', () => {
   });
 });
 
+describe('finishing a terminal early', () => {
+  beforeEach(() => {
+    document.body.innerHTML = terminalHtml();
+  });
+
+  const options = { baseMs: 10, outputPauseMs: 50, nextPauseMs: 70 };
+
+  it('shows every block with its full command and stops the animation', () => {
+    const { schedule, queue } = manualScheduler();
+    const terminal = document.getElementById('t1')!;
+    const run = animateTerminal(terminal, schedule, options);
+    queue.shift()!.task();
+    queue.shift()!.task();
+    expect(document.querySelector('[data-cmd]')!.textContent).toBe('wh');
+
+    run.finish();
+    const commands = [...document.querySelectorAll('[data-cmd]')].map(
+      (el) => el.textContent,
+    );
+    expect(commands).toEqual(['whoami', 'ls']);
+    expect(document.querySelectorAll('.is-live')).toHaveLength(2);
+    expect(document.querySelectorAll('.is-out')).toHaveLength(2);
+    expect(terminal.querySelector('.cursor')).toBeNull();
+
+    while (queue.length > 0) queue.shift()!.task();
+    expect(
+      [...document.querySelectorAll('[data-cmd]')].map((el) => el.textContent),
+    ).toEqual(['whoami', 'ls']);
+    expect(terminal.querySelector('.cursor')).toBeNull();
+  });
+
+  it('is harmless after the animation has completed', () => {
+    const { schedule, flush } = manualScheduler();
+    const run = animateTerminal(
+      document.getElementById('t1')!,
+      schedule,
+      options,
+    );
+    flush();
+    run.finish();
+    expect(document.querySelectorAll('.is-out')).toHaveLength(2);
+    expect(document.querySelectorAll('[data-cmd]')[1]!.textContent).toBe('ls');
+  });
+
+  it('reveals an untouched terminal without animating it', () => {
+    document.body.innerHTML =
+      '<div data-terminal id="t"><div data-block></div>' +
+      terminalHtml() +
+      '</div>';
+    const terminal = document.getElementById('t')!;
+    revealTerminal(terminal);
+    expect(document.querySelectorAll('.is-live')).toHaveLength(2);
+    expect(document.querySelectorAll('.is-out')).toHaveLength(2);
+    expect(document.querySelector('[data-cmd]')!.textContent).toBe('whoami');
+    expect(terminal.querySelector('.cursor')).toBeNull();
+  });
+});
+
 type Entry = { isIntersecting: boolean; target: Element };
 
 function fakeObserver() {
@@ -390,6 +449,46 @@ describe('initTyping', () => {
     });
     observer.callback([{ isIntersecting: true, target: firstLine }]);
     flush();
+    expect(document.querySelectorAll('.is-live')).toHaveLength(0);
+  });
+
+  it('reveals a terminal at once when focus enters it before it types', () => {
+    const { Ctor, instances } = fakeObserver();
+    const { schedule, queue } = manualScheduler();
+    initTyping(document, motionAllowed(Ctor), schedule);
+    const link = document.createElement('a');
+    document.getElementById('b2')!.append(link);
+
+    link.dispatchEvent(new Event('focusin', { bubbles: true }));
+    expect(document.querySelectorAll('.is-out')).toHaveLength(2);
+
+    const firstLine = document.querySelector('[data-cmd-line]')!;
+    instances[0]!.callback([{ isIntersecting: true, target: firstLine }]);
+    expect(queue).toHaveLength(0);
+    expect(document.querySelector('[data-cmd]')!.textContent).toBe('whoami');
+  });
+
+  it('finishes a terminal that is already typing when focus enters it', () => {
+    const { Ctor, instances } = fakeObserver();
+    const { schedule, queue } = manualScheduler();
+    initTyping(document, motionAllowed(Ctor), schedule);
+    const firstLine = document.querySelector('[data-cmd-line]')!;
+    instances[0]!.callback([{ isIntersecting: true, target: firstLine }]);
+    queue.shift()!.task();
+
+    const link = document.createElement('a');
+    document.getElementById('b2')!.append(link);
+    link.dispatchEvent(new Event('focusin', { bubbles: true }));
+    expect(document.querySelectorAll('.is-out')).toHaveLength(2);
+    expect(document.querySelector('[data-cmd]')!.textContent).toBe('whoami');
+  });
+
+  it('ignores focus outside any terminal', () => {
+    const { Ctor } = fakeObserver();
+    initTyping(document, motionAllowed(Ctor), manualScheduler().schedule);
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    outside.dispatchEvent(new Event('focusin', { bubbles: true }));
     expect(document.querySelectorAll('.is-live')).toHaveLength(0);
   });
 

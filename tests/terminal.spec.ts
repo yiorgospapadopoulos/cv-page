@@ -74,7 +74,7 @@ test.describe('with motion allowed', () => {
   }) => {
     await page.goto('/');
     await expect(page.locator('html')).toHaveClass(/typing/);
-    await expect(page.locator('#stack [data-block]')).toBeHidden();
+    await expect(page.locator('#stack [data-block]')).toHaveCSS('opacity', '0');
 
     await page
       .locator('#projects [data-cmd-line]')
@@ -83,6 +83,9 @@ test.describe('with motion allowed', () => {
     await expect(page.locator('#projects [data-cmd]').first()).toHaveText(
       'ls projects/',
     );
+    await expect(
+      page.locator(`[data-project="${thesis.slug}"]`).locator('xpath=..'),
+    ).toHaveCSS('opacity', '1');
     await expect(
       page.getByRole('heading', { level: 3, name: thesis.title }),
     ).toBeVisible();
@@ -91,7 +94,7 @@ test.describe('with motion allowed', () => {
     await expect(page.locator('#education [data-cmd]')).toHaveText(
       'cat education.md',
     );
-    await expect(page.locator('#education .out')).toBeVisible();
+    await expect(page.locator('#education .out')).toHaveCSS('opacity', '1');
 
     await page
       .locator('#projects [data-cmd-line]')
@@ -101,8 +104,9 @@ test.describe('with motion allowed', () => {
       'ls projects/',
     );
     await expect(
-      page.getByRole('heading', { level: 3, name: thesis.title }),
-    ).toBeVisible();
+      page.locator(`[data-project="${thesis.slug}"]`).locator('xpath=..'),
+    ).toHaveCSS('opacity', '1');
+    await expect(page.locator('#projects .cursor')).toHaveCount(0);
   });
 
   test('types the command character by character with a cursor', async ({
@@ -124,7 +128,7 @@ test.describe('with motion allowed', () => {
     });
     await page.goto('/');
     await page.locator('#about [data-cmd-line]').scrollIntoViewIfNeeded();
-    await expect(page.locator('#about .out')).toBeVisible();
+    await expect(page.locator('#about .out')).toHaveCSS('opacity', '1');
     await expect(page.locator('#about .cursor')).toHaveCount(0);
 
     const result = await page.evaluate(() => {
@@ -165,6 +169,7 @@ test.describe('layout', () => {
             (el) =>
               el.tagName !== 'PRE' &&
               !el.closest('pre') &&
+              !el.classList.contains('sr-only') &&
               el.scrollWidth > el.clientWidth + 1 &&
               el.clientWidth > 0,
           )

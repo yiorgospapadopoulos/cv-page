@@ -12,9 +12,10 @@ const { command, divider = false } = Astro.props;
 <div class:list={['block', { divider }]} data-block>
   <p class="line" data-cmd-line>
     <span class="prompt">{promptText}</span>
-    <span class="cmd" data-cmd>
+    <span class="cmd" data-cmd aria-hidden="true">
       {command}
     </span>
+    <span class="sr-only">{command}</span>
   </p>
   <div class="out">
     <slot />
@@ -53,12 +54,10 @@ const { command, divider = false } = Astro.props;
     margin-top: 0.75em;
   }
 
-  :global(html.typing) .block:not(:global(.is-live)) {
-    visibility: hidden;
-  }
-
+  :global(html.typing) .block:not(:global(.is-live)),
   :global(html.typing) .block:not(:global(.is-out)) .out {
-    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
   }
 
   :global(html.typing) .block.is-out .out {

@@ -104,38 +104,59 @@ export function runSequence(
   next(0);
 }
 
+interface BlockParts {
+  block: Element;
+  line: Element;
+  command: Element;
+  text: string;
+}
+
+export interface TerminalRun {
+  finish(): void;
+}
+
+function blockParts(terminal: Element): BlockParts[] {
+  const parts: BlockParts[] = [];
+  for (const block of terminal.querySelectorAll('[data-block]')) {
+    const line = block.querySelector('[data-cmd-line]');
+    const command = block.querySelector('[data-cmd]');
+    if (line === null || command === null) continue;
+    parts.push({ block, line, command, text: String(command.textContent) });
+  }
+  return parts;
+}
+
+function showAll(parts: BlockParts[]): void {
+  for (const { block, command, text } of parts) {
+    block.classList.add('is-live', 'is-out');
+    command.textContent = text;
+  }
+}
+
 export function buildSteps(
   terminal: Element,
   schedule: Scheduler,
   options: TypingOptions,
   cursor: Element = createCursor(terminal),
 ): Step[] {
-  const steps: Step[] = [];
-  for (const block of terminal.querySelectorAll('[data-block]')) {
-    const line = block.querySelector('[data-cmd-line]');
-    const command = block.querySelector('[data-cmd]');
-    if (line === null || command === null) continue;
-    const text = String(command.textContent);
-    steps.push({
-      run(done) {
-        block.classList.add('is-live');
-        command.textContent = '';
-        line.append(cursor);
-        typeText(
-          command,
-          text,
-          typingDelays(text, options.baseMs, hashSeed(text)),
-          schedule,
-          () =>
-            schedule(() => {
-              block.classList.add('is-out');
-              schedule(done, options.nextPauseMs);
-            }, options.outputPauseMs),
-        );
-      },
-    });
-  }
-  return steps;
+  return blockParts(terminal).map(({ block, line, command, text }) => ({
+    run(done) {
+      block.classList.add('is-live');
+      command.textContent = '';
+      line.append(cursor);
+      typeText(
+        command,
+        text,
+        typingDelays(text, options.baseMs, hashSeed(text)),
+        schedule,
+        () =>
+          schedule(() => {
+            block.classList.add('is-out');
+            schedule(done, options.nextPauseMs);
+          }, options.outputPauseMs),
+      );
+    },
+  }));
 }
 
 function createCursor(terminal: Element): Element {
@@ -145,15 +166,32 @@ function createCursor(terminal: Element): Element {
   return cursor;
 }
 
+export function revealTerminal(terminal: Element): void {
+  showAll(blockParts(terminal));
+}
+
 export function animateTerminal(
   terminal: Element,
   schedule: Scheduler,
   options: TypingOptions = defaultOptions,
-): void {
+): TerminalRun {
   const cursor = createCursor(terminal);
-  runSequence(buildSteps(terminal, schedule, options, cursor), () =>
+  const parts = blockParts(terminal);
+  let finished = false;
+  const guarded: Scheduler = (task, delayMs) =>
+    schedule(() => {
+      if (!finished) task();
+    }, delayMs);
+  runSequence(buildSteps(terminal, guarded, options, cursor), () =>
     cursor.remove(),
   );
+  return {
+    finish() {
+      finished = true;
+      showAll(parts);
+      cursor.remove();
+    },
+  };
 }
 
 export function observeOnce(
@@ -184,6 +222,7 @@ export function initTyping(
   }
   root.classList.add(typingClass);
 
+  const runs = new WeakMap<Element, TerminalRun>();
   const started = new WeakSet<Element>();
   const firstLines = [...doc.querySelectorAll('[data-terminal]')].flatMap(
     (terminal) => {
@@ -197,10 +236,21 @@ export function initTyping(
       const terminal = line.closest('[data-terminal]');
       if (terminal === null || started.has(terminal)) return;
       started.add(terminal);
-      animateTerminal(terminal, schedule);
+      runs.set(terminal, animateTerminal(terminal, schedule));
     },
     env.IntersectionObserver,
     { threshold: 0.25, rootMargin: '0px 0px -10% 0px' },
   );
+  doc.addEventListener('focusin', (event) => {
+    const terminal = (event.target as Element).closest('[data-terminal]');
+    if (terminal === null) return;
+    const run = runs.get(terminal);
+    if (run === undefined) {
+      started.add(terminal);
+      revealTerminal(terminal);
+    } else {
+      run.finish();
+    }
+  });
   return true;
 }
