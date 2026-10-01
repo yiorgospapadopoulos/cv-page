@@ -68,7 +68,7 @@ export const cardPalette = {
   strap: '#141414',
   chips: [
     { fill: mixWithWhite('#0a66c2', 0.14), text: '#0a66c2' },
-    { fill: mixWithWhite('#c2410c', 0.14), text: '#b8430a' },
+    { fill: mixWithWhite('#c2410c', 0.14), text: '#a63b08' },
     { fill: mixWithWhite('#7ee787', 0.3), text: '#1a6a2a' },
   ],
 } as const;
