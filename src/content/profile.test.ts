@@ -57,6 +57,27 @@ describe('profile', () => {
     expect(profile.footer.cvPath).toBe('/Yiorgos_Papadopoulos_CV.pdf');
   });
 
+  it('builds the footer sentence from text and link segments', () => {
+    expect(
+      profile.footer.segments
+        .map((segment) =>
+          segment.kind === 'text' ? segment.text : segment.label,
+        )
+        .join(''),
+    ).toBe(
+      "I'd love to hear from you. Connect on LinkedIn, see my code on GitHub, or send me an email.",
+    );
+    expect(
+      profile.footer.segments.flatMap((segment) =>
+        segment.kind === 'link' ? [segment.link] : [],
+      ),
+    ).toEqual(['linkedin', 'github', 'email']);
+    expect(profile.footer.closing).toBe('Building AI that people can rely on.');
+    expect(profile.footer.cvLabel).toBe('Download CV');
+    expect(profile.footer.copyright).toBe(`© 2026 ${ownerName}`);
+    expect(profile.footer.builtWith).toBe('Built with Astro and TypeScript');
+  });
+
   it('has one experience entry, five stack groups, and three education entries', () => {
     expect(profile.experience).toHaveLength(1);
     expect(profile.stackGroups.map((group) => group.label)).toEqual([

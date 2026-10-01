@@ -67,11 +67,19 @@ export interface EducationEntry {
   details?: string[];
 }
 
+export type FooterLinkKey = 'linkedin' | 'github' | 'email';
+
+export type FooterSegment =
+  | { kind: 'text'; text: string }
+  | { kind: 'link'; link: FooterLinkKey; label: string };
+
 export interface Footer {
   closing: string;
-  text: string;
+  segments: FooterSegment[];
   cvLabel: string;
   cvPath: string;
+  copyright: string;
+  builtWith: string;
 }
 
 export interface TerminalCommand {

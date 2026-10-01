@@ -66,12 +66,21 @@ const base: Profile = {
   certifications: ['Certificate'],
   footer: {
     closing: 'Bye.',
-    text: 'Write to me.',
+    segments: [
+      { kind: 'text', text: 'Write to ' },
+      { kind: 'link', link: 'email', label: 'me' },
+    ],
     cvLabel: 'Download CV',
     cvPath: '/cv.pdf',
+    copyright: '© 2026 Some Name',
+    builtWith: 'Built with Astro',
   },
   commands: [{ name: 'help', description: 'list commands' }],
 };
+
+function setFooterText(draft: Profile, text: string): void {
+  draft.footer.segments = [{ kind: 'text', text }];
+}
 
 function change(mutate: (draft: Profile) => void): string[] {
   const draft = structuredClone(base);
@@ -93,6 +102,22 @@ describe('validateProfile', () => {
       p.about.paragraphs[0] = 'Georgios here';
     });
     expect(problems).toEqual(['about.paragraphs[0]: contains "Georgios"']);
+  });
+
+  it('checks every footer segment, label, and line', () => {
+    const problems = change((p) => {
+      p.footer.segments = [
+        { kind: 'text', text: 'Hello' },
+        { kind: 'link', link: 'github', label: 'Georgios' },
+      ];
+      p.footer.copyright = 'Call 691 234 5678';
+      p.footer.builtWith = '';
+    });
+    expect(problems).toEqual([
+      'footer.segments[1].label: contains "Georgios"',
+      'footer.copyright: looks like a phone number',
+      'footer.builtWith: empty string',
+    ]);
   });
 
   describe('forbidden text', () => {
@@ -138,7 +163,7 @@ describe('validateProfile', () => {
     ])('rejects the phone number %s', (phone) => {
       expectProblem(
         change((p) => {
-          p.footer.text = `Call ${phone} now`;
+          setFooterText(p, `Call ${phone} now`);
         }),
         'phone number',
       );
@@ -156,7 +181,7 @@ describe('validateProfile', () => {
     it('rejects a mailto link in text', () => {
       expectProblem(
         change((p) => {
-          p.footer.text = 'Write to mailto:someone@example.com';
+          setFooterText(p, 'Write to mailto:someone@example.com');
         }),
         'mailto',
       );
@@ -185,7 +210,7 @@ describe('validateProfile', () => {
     it('rejects other schemes inside text', () => {
       expectProblem(
         change((p) => {
-          p.footer.text = 'See ftp://example.com/file';
+          setFooterText(p, 'See ftp://example.com/file');
         }),
         'https://',
       );
@@ -194,7 +219,7 @@ describe('validateProfile', () => {
     it('allows https urls inside text', () => {
       expect(
         change((p) => {
-          p.footer.text = 'See https://example.com/page';
+          setFooterText(p, 'See https://example.com/page');
         }),
       ).toEqual([]);
     });

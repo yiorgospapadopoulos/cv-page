@@ -342,9 +342,19 @@ export const profile: Profile = {
   ],
   footer: {
     closing: 'Building AI that people can rely on.',
-    text: "I'd love to hear from you. Connect on LinkedIn, see my code on GitHub, or send me an email.",
+    segments: [
+      { kind: 'text', text: "I'd love to hear from you. Connect on " },
+      { kind: 'link', link: 'linkedin', label: 'LinkedIn' },
+      { kind: 'text', text: ', see my code on ' },
+      { kind: 'link', link: 'github', label: 'GitHub' },
+      { kind: 'text', text: ', or send me an ' },
+      { kind: 'link', link: 'email', label: 'email' },
+      { kind: 'text', text: '.' },
+    ],
     cvLabel: 'Download CV',
     cvPath: '/Yiorgos_Papadopoulos_CV.pdf',
+    copyright: `© 2026 ${ownerName}`,
+    builtWith: 'Built with Astro and TypeScript',
   },
   commands: [
     { name: 'help', description: 'list commands' },
