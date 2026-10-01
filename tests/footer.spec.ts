@@ -62,7 +62,7 @@ test.describe('footer', () => {
     expect(colours).toEqual({
       linkedin: ['rgb(10, 102, 194)', 'rgb(255, 255, 255)'],
       github: ['rgb(17, 17, 17)', 'rgb(255, 255, 255)'],
-      email: ['rgb(232, 89, 12)', 'rgb(255, 255, 255)'],
+      email: ['rgb(194, 65, 12)', 'rgb(255, 255, 255)'],
     });
   });
 
