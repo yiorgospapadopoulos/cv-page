@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { profile } from '../src/content/profile';
 
 const { hero, about } = profile;
@@ -167,4 +167,92 @@ test.describe('badge placeholder', () => {
       expect(running).toBe(0);
     });
   });
+});
+
+type Box = { x: number; y: number; width: number; height: number };
+
+function intersects(a: Box, b: Box): boolean {
+  return (
+    a.x < b.x + b.width &&
+    a.x + a.width > b.x &&
+    a.y < b.y + b.height &&
+    a.y + a.height > b.y
+  );
+}
+
+async function box(page: Page, selector: string): Promise<Box> {
+  const found = await page.locator(selector).first().boundingBox();
+  expect(found, selector).not.toBeNull();
+  return found!;
+}
+
+const sizes = [
+  { name: 'native', size: null },
+  { name: '375x812', size: { width: 375, height: 812 } },
+  { name: '800x600', size: { width: 800, height: 600 } },
+  { name: '1440x900', size: { width: 1440, height: 900 } },
+] as const;
+
+for (const motion of ['no-preference', 'reduce'] as const) {
+  for (const { name, size } of sizes) {
+    test(`layout has no overlaps (${name}, motion ${motion})`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion: motion });
+      if (size) await page.setViewportSize(size);
+      await page.goto('/');
+
+      const viewportWidth = await page.evaluate(() => window.innerWidth);
+      const [strap, card, intro, current, name1, name2, h1] = await Promise.all(
+        [
+          box(page, '#badge-slot .strap'),
+          box(page, '#badge-slot .card'),
+          box(page, '.intro'),
+          box(page, '.current'),
+          box(page, 'h1 span:nth-child(1)'),
+          box(page, 'h1 span:nth-child(2)'),
+          box(page, 'h1'),
+        ],
+      );
+
+      for (const part of [strap, card]) {
+        expect(intersects(part, intro)).toBe(false);
+        expect(intersects(part, current)).toBe(false);
+      }
+      expect(intersects(strap, h1)).toBe(false);
+      expect(intersects(card, name2)).toBe(false);
+      if (viewportWidth < 860) {
+        expect(intersects(card, name1)).toBe(false);
+      }
+      expect(intersects(intro, current)).toBe(false);
+
+      for (const text of [intro, current]) {
+        expect(text.x).toBeGreaterThanOrEqual(0);
+        expect(text.x + text.width).toBeLessThanOrEqual(viewportWidth);
+      }
+    });
+  }
+}
+
+test('each role line stays on one line on wide screens', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop');
+  await page.goto('/');
+  const heights = await page
+    .locator('.current li')
+    .evaluateAll((items) =>
+      items.map((li) => li.getBoundingClientRect().height),
+    );
+  expect(new Set(heights).size).toBe(1);
+  expect(heights[0]).toBeLessThan(24);
+});
+
+test('the company stays together on narrow screens', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/');
+  const orgHeights = await page
+    .locator('.current .org')
+    .evaluateAll((items) => items.map((el) => el.getClientRects().length));
+  expect(orgHeights.every((count) => count === 1)).toBe(true);
 });
