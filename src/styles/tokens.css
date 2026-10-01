@@ -1,0 +1,33 @@
+:root {
+  --paper: #ffffff;
+  --ink: #111111;
+  --ink-muted: #6b6b6b;
+  --line: #e6e4df;
+  --soft: #f4f3ef;
+
+  --term-bg: #121212;
+  --term-ink: #e8e6e3;
+  --term-muted: #8b949e;
+  --term-prompt: #7ee787;
+  --term-accent: #f0b46b;
+
+  --link-linkedin: #0a66c2;
+  --link-github: #111111;
+  --link-email: #e8590c;
+
+  --font-serif:
+    'Fraunces Variable', 'Iowan Old Style', 'Palatino Linotype', Palatino,
+    Georgia, serif;
+  --font-mono:
+    'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas,
+    monospace;
+
+  --gutter: 16px;
+  --radius: 4px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --gutter: 40px;
+  }
+}

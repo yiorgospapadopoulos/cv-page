@@ -5,6 +5,8 @@
   "type": "module",
   "dependencies": {
     "@astrojs/react": "^7.0.0",
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "astro": "^7.3.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
@@ -21,6 +23,7 @@
     "eslint-plugin-astro": "^1.7.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "globals": "^17.13.0",
+    "happy-dom": "^20.14.5",
     "prettier": "^3.9.9",
     "prettier-plugin-astro": "^1.1.0",
     "typescript": "^6.0.3",

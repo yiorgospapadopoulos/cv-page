@@ -1,14 +1,9 @@
 ---
+import Base from '../layouts/Base.astro';
+import { profile } from '../content/profile';
 import { ownerName } from '../lib/site';
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{ownerName}</title>
-  </head>
-  <body>
-    <h1>{ownerName}</h1>
-  </body>
-</html>
+<Base title={ownerName} description={profile.hero.intro}>
+  <h1>{ownerName}</h1>
+</Base>
