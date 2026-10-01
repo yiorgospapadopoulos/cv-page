@@ -55,6 +55,28 @@ test.describe('connection-aware badge', () => {
     test.skip(!(await hasWebGL(page)), 'WebGL is unavailable in this engine');
     await page.waitForRequest(sceneChunk, { timeout: 20_000 });
   });
+
+  test('streams the physics engine as a separate wasm file', async ({
+    page,
+  }) => {
+    const sizes: number[] = [];
+    page.on('response', async (response) => {
+      if (/\/_astro\/Scene[.-]/.test(response.url())) {
+        sizes.push((await response.body()).length);
+      }
+    });
+    await page.goto('/');
+    test.skip(!(await hasWebGL(page)), 'WebGL is unavailable in this engine');
+    const wasm = await page.waitForResponse(/\.wasm$/, { timeout: 25_000 });
+    expect(wasm.headers()['content-type']).toBe('application/wasm');
+    await expect(page.locator('#badge-slot')).toHaveAttribute(
+      'data-badge-3d',
+      'ready',
+      { timeout: 20_000 },
+    );
+    expect(sizes).toHaveLength(1);
+    expect(sizes[0]).toBeLessThan(1_500_000);
+  });
 });
 
 test.describe('touch devices', () => {
