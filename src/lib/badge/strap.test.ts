@@ -25,8 +25,8 @@ describe('strapRepeat', () => {
     expect(strapRepeat(250, 100)).toBe(2.5);
   });
 
-  it('never drops below one tile', () => {
-    expect(strapRepeat(20, 100)).toBe(1);
+  it('shows part of a tile on short bands so the text keeps its size', () => {
+    expect(strapRepeat(20, 100)).toBe(0.2);
   });
 
   it('rejects a non-positive tile length', () => {

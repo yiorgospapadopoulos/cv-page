@@ -9,5 +9,5 @@ export function strapLabel(
 
 export function strapRepeat(bandLength: number, tileLength: number): number {
   if (tileLength <= 0) throw new RangeError('tileLength must be positive');
-  return Math.max(1, bandLength / tileLength);
+  return bandLength / tileLength;
 }
