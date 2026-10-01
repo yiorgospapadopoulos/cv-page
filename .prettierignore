@@ -1,0 +1,12 @@
+dist
+.astro
+coverage
+playwright-report
+test-results
+package-lock.json
+AGENTS.md
+CLAUDE.md
+PROJECT_INIT.md
+plans
+.remember
+.claude
