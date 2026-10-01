@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const port = 4321;
+const chromiumLaunch = { args: ['--enable-unsafe-swiftshader'] };
 
 export default defineConfig({
   testDir: 'tests',
@@ -11,11 +12,18 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${port}`,
     trace: 'on-first-retry',
-    launchOptions: { args: ['--enable-unsafe-swiftshader'] },
   },
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile', use: { ...devices['Pixel 7'] } },
+    {
+      name: 'desktop',
+      use: { ...devices['Desktop Chrome'], launchOptions: chromiumLaunch },
+    },
+    {
+      name: 'mobile',
+      use: { ...devices['Pixel 7'], launchOptions: chromiumLaunch },
+    },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
   ],
   webServer: {
     command: `npm run build && npm run preview -- --port ${port} --ignore-lock`,

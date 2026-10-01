@@ -4,6 +4,14 @@ import { skipLink } from '../src/lib/site';
 
 test.use({ reducedMotion: 'reduce' });
 
+// Safari on macOS only tabs to links and buttons with the Option key held.
+const tabKey =
+  process.platform === 'darwin' ? ['Tab', 'Alt+Tab'] : ['Tab', 'Tab'];
+
+function tab(page: Page, browserName: string): Promise<void> {
+  return page.keyboard.press(tabKey[browserName === 'webkit' ? 1 : 0]!);
+}
+
 async function headingLevels(page: Page): Promise<number[]> {
   return page
     .locator('h1, h2, h3, h4, h5, h6')
@@ -49,36 +57,38 @@ test.describe('skip link', () => {
 
   test('is the first focusable element and appears on focus', async ({
     page,
+    browserName,
   }) => {
     const link = page.getByRole('link', { name: skipLink.label });
     await expect(link).toHaveAttribute('href', `#${skipLink.target}`);
     await expect(link).not.toBeInViewport();
 
-    await page.keyboard.press('Tab');
+    await tab(page, browserName);
     await expect(link).toBeFocused();
     await expect(link).toBeInViewport({ ratio: 1 });
   });
 
   test('moves focus to the main content and the next Tab stays inside it', async ({
     page,
+    browserName,
   }) => {
-    await page.keyboard.press('Tab');
+    await tab(page, browserName);
     await page.keyboard.press('Enter');
 
     const main = page.getByRole('main');
     await expect(main).toBeFocused();
     await expect(page).toHaveURL(new RegExp(`#${skipLink.target}$`));
 
-    await page.keyboard.press('Tab');
+    await tab(page, browserName);
     const inside = await page.evaluate(() =>
       document.querySelector('main')?.contains(document.activeElement),
     );
     expect(inside).toBe(true);
   });
 
-  test('hides again once focus moves on', async ({ page }) => {
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab');
+  test('hides again once focus moves on', async ({ page, browserName }) => {
+    await tab(page, browserName);
+    await tab(page, browserName);
     await expect(
       page.getByRole('link', { name: skipLink.label }),
     ).not.toBeInViewport();
@@ -88,11 +98,12 @@ test.describe('skip link', () => {
 test.describe('keyboard use', () => {
   test('Tab reaches the whole page and every stop shows a focus indicator', async ({
     page,
+    browserName,
   }) => {
     await page.goto('/');
     const stops: Array<{ name: string; ok: boolean }> = [];
     for (let i = 0; i < 80; i++) {
-      await page.keyboard.press('Tab');
+      await tab(page, browserName);
       const stop = await page.evaluate(() => {
         const el = document.activeElement as HTMLElement;
         const style = getComputedStyle(el);

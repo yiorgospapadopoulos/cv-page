@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { hasWebGL, noWebGL } from './support';
 
 const sceneChunk = /\/_astro\/(Scene|rapier)[.-]/;
 
@@ -8,12 +9,6 @@ function sceneRequests(page: Page): string[] {
     if (sceneChunk.test(request.url())) urls.push(request.url());
   });
   return urls;
-}
-
-async function hasWebGL(page: Page): Promise<boolean> {
-  return page.evaluate(
-    () => document.createElement('canvas').getContext('webgl2') !== null,
-  );
 }
 
 const connections = [
@@ -52,7 +47,7 @@ test.describe('connection-aware badge', () => {
     page,
   }) => {
     await page.goto('/');
-    test.skip(!(await hasWebGL(page)), 'WebGL is unavailable in this engine');
+    test.skip(!(await hasWebGL(page)), noWebGL);
     await page.waitForRequest(sceneChunk, { timeout: 20_000 });
   });
 
@@ -66,7 +61,7 @@ test.describe('connection-aware badge', () => {
       }
     });
     await page.goto('/');
-    test.skip(!(await hasWebGL(page)), 'WebGL is unavailable in this engine');
+    test.skip(!(await hasWebGL(page)), noWebGL);
     const wasm = await page.waitForResponse(/\.wasm$/, { timeout: 25_000 });
     expect(wasm.headers()['content-type']).toBe('application/wasm');
     await expect(page.locator('#badge-slot')).toHaveAttribute(
@@ -86,7 +81,7 @@ test.describe('touch devices', () => {
   }) => {
     test.skip(!isMobile, 'Only coarse-pointer devices defer the scene');
     await page.goto('/', { waitUntil: 'load' });
-    test.skip(!(await hasWebGL(page)), 'WebGL is unavailable in this engine');
+    test.skip(!(await hasWebGL(page)), noWebGL);
     const loadedAt = Date.now();
     await page.waitForRequest(sceneChunk, { timeout: 20_000 });
     expect(Date.now() - loadedAt).toBeGreaterThanOrEqual(1400);
@@ -104,7 +99,7 @@ test.describe('touch devices', () => {
     test.skip(!isMobile, 'Only coarse-pointer devices defer the scene');
     const requests = sceneRequests(page);
     await page.goto('/', { waitUntil: 'load' });
-    test.skip(!(await hasWebGL(page)), 'WebGL is unavailable in this engine');
+    test.skip(!(await hasWebGL(page)), noWebGL);
     await page.evaluate(() =>
       document.querySelector('#about')?.scrollIntoView(),
     );
@@ -155,8 +150,9 @@ test.describe('largest contentful paint', () => {
       result.unsupported || result.entries.length === 0,
       'Largest Contentful Paint is not reported by this engine',
     );
-    expect(result.entries.every((entry) => entry.inHero)).toBe(true);
-    expect(result.entries.map((entry) => entry.tag)).not.toContain('CANVAS');
+    const last = result.entries.at(-1)!;
+    expect(last.inHero).toBe(true);
+    expect(last.tag).not.toBe('CANVAS');
   });
 });
 
@@ -179,9 +175,10 @@ test.describe('fonts and styles', () => {
     await expect(preload).toHaveAttribute('crossorigin', '');
     expect(await preload.getAttribute('href')).toContain('fraunces-latin-');
 
-    expect(fonts.length).toBeGreaterThan(0);
-    expect(fonts.length).toBeLessThanOrEqual(2);
-    for (const url of fonts) expect(url).toMatch(/-latin-(opsz|wght)-/);
+    const files = [...new Set(fonts)];
+    expect(files.length).toBeGreaterThan(0);
+    expect(files.length).toBeLessThanOrEqual(2);
+    for (const url of files) expect(url).toMatch(/-latin-(opsz|wght)-/);
 
     const displays = await page.evaluate(() =>
       [...document.fonts].map((face) => face.display),

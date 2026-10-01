@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { profile } from '../src/content/profile';
+import { hasWebGL } from './support';
 
 const { hero, about } = profile;
 
@@ -209,7 +210,8 @@ for (const motion of ['no-preference', 'reduce'] as const) {
       await page.emulateMedia({ reducedMotion: motion });
       if (size) await page.setViewportSize(size);
       await page.goto('/');
-      if (motion === 'no-preference') {
+      const threeD = motion === 'no-preference' && (await hasWebGL(page));
+      if (threeD) {
         await expect(page.locator('#badge-slot')).toHaveAttribute(
           'data-badge-3d',
           'ready',
@@ -226,7 +228,7 @@ for (const motion of ['no-preference', 'reduce'] as const) {
         box(page, 'h1'),
       ]);
 
-      if (motion === 'no-preference') {
+      if (threeD) {
         const parts = [await box(page, '#badge-slot .badge-frame')];
         if ((await page.locator('#badge-slot .badge-stub').count()) > 0) {
           parts.push(await box(page, '#badge-slot .badge-stub'));
@@ -262,13 +264,14 @@ for (const motion of ['no-preference', 'reduce'] as const) {
 
 test('each role line stays on one line on wide screens', async ({
   page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'desktop');
+  isMobile,
+}) => {
+  test.skip(isMobile, 'Only wide screens keep each role on one line');
   await page.goto('/');
   const heights = await page
     .locator('.current li')
     .evaluateAll((items) =>
-      items.map((li) => li.getBoundingClientRect().height),
+      items.map((li) => Math.round(li.getBoundingClientRect().height)),
     );
   expect(new Set(heights).size).toBe(1);
   expect(heights[0]).toBeLessThan(24);

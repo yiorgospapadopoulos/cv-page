@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { profile } from '../src/content/profile';
+import { hasWebGL, noWebGL } from './support';
 
 function collectErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -11,6 +12,7 @@ function collectErrors(page: Page): string[] {
 }
 
 async function waitForBadge(page: Page) {
+  test.skip(!(await hasWebGL(page)), noWebGL);
   await expect(page.locator('#badge-slot')).toHaveAttribute(
     'data-badge-3d',
     'ready',
