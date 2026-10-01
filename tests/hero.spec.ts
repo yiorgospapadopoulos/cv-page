@@ -127,38 +127,35 @@ test.describe('more dialog', () => {
   });
 });
 
+const disableWebGL = () => {
+  const original = HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext = function (
+    this: HTMLCanvasElement,
+    kind: string,
+    ...args: unknown[]
+  ) {
+    if (kind.includes('webgl')) return null;
+    return (original as (...a: unknown[]) => unknown).call(this, kind, ...args);
+  } as typeof original;
+};
+
 test.describe('badge placeholder', () => {
-  test('is visible and clear of the intro block', async ({ page }) => {
-    await page.goto('/');
-    const card = page.locator('#badge-slot .card');
-    await expect(card).toBeVisible();
-
-    const [cardBox, introBox] = await Promise.all([
-      card.boundingBox(),
-      page.locator('.intro').boundingBox(),
-    ]);
-    expect(cardBox).not.toBeNull();
-    expect(introBox).not.toBeNull();
-    const a = cardBox!;
-    const b = introBox!;
-    const overlaps =
-      a.x < b.x + b.width &&
-      a.x + a.width > b.x &&
-      a.y < b.y + b.height &&
-      a.y + a.height > b.y;
-    expect(overlaps).toBe(false);
-  });
-
-  test('sways by default', async ({ page }) => {
-    await page.goto('/');
-    const running = await page
-      .locator('[data-badge]')
-      .evaluate((el) => el.getAnimations().length);
-    expect(running).toBeGreaterThan(0);
-  });
-
   test.describe('with reduced motion', () => {
     test.use({ reducedMotion: 'reduce' });
+
+    test('is visible and clear of the intro block', async ({ page }) => {
+      await page.goto('/');
+      const card = page.locator('#badge-slot .card');
+      await expect(card).toBeVisible();
+
+      const [cardBox, introBox] = await Promise.all([
+        card.boundingBox(),
+        page.locator('.intro').boundingBox(),
+      ]);
+      expect(cardBox).not.toBeNull();
+      expect(introBox).not.toBeNull();
+      expect(intersects(cardBox!, introBox!)).toBe(false);
+    });
 
     test('has no running animation', async ({ page }) => {
       await page.goto('/');
@@ -167,6 +164,16 @@ test.describe('badge placeholder', () => {
         .evaluate((el) => el.getAnimations().length);
       expect(running).toBe(0);
     });
+  });
+
+  test('sways when the 3d badge is unavailable', async ({ page }) => {
+    await page.addInitScript(disableWebGL);
+    await page.goto('/');
+    await expect(page.locator('[data-badge]')).toBeVisible();
+    const running = await page
+      .locator('[data-badge]')
+      .evaluate((el) => el.getAnimations().length);
+    expect(running).toBeGreaterThan(0);
   });
 });
 
@@ -202,28 +209,46 @@ for (const motion of ['no-preference', 'reduce'] as const) {
       await page.emulateMedia({ reducedMotion: motion });
       if (size) await page.setViewportSize(size);
       await page.goto('/');
+      if (motion === 'no-preference') {
+        await expect(page.locator('#badge-slot')).toHaveAttribute(
+          'data-badge-3d',
+          'ready',
+          { timeout: 20_000 },
+        );
+      }
 
       const viewportWidth = await page.evaluate(() => window.innerWidth);
-      const [strap, card, intro, current, name1, name2, h1] = await Promise.all(
-        [
+      const [intro, current, name1, name2, h1] = await Promise.all([
+        box(page, '.intro'),
+        box(page, '.current'),
+        box(page, 'h1 span:nth-child(1)'),
+        box(page, 'h1 span:nth-child(2)'),
+        box(page, 'h1'),
+      ]);
+
+      if (motion === 'no-preference') {
+        const parts = [await box(page, '#badge-slot .badge-frame')];
+        if ((await page.locator('#badge-slot .badge-stub').count()) > 0) {
+          parts.push(await box(page, '#badge-slot .badge-stub'));
+        }
+        for (const part of parts) {
+          expect(intersects(part, intro)).toBe(false);
+          expect(intersects(part, current)).toBe(false);
+        }
+      } else {
+        const [strap, card] = await Promise.all([
           box(page, '#badge-slot .strap'),
           box(page, '#badge-slot .card'),
-          box(page, '.intro'),
-          box(page, '.current'),
-          box(page, 'h1 span:nth-child(1)'),
-          box(page, 'h1 span:nth-child(2)'),
-          box(page, 'h1'),
-        ],
-      );
-
-      for (const part of [strap, card]) {
-        expect(intersects(part, intro)).toBe(false);
-        expect(intersects(part, current)).toBe(false);
-      }
-      expect(intersects(strap, h1)).toBe(false);
-      expect(intersects(card, name2)).toBe(false);
-      if (viewportWidth < 860) {
-        expect(intersects(card, name1)).toBe(false);
+        ]);
+        for (const part of [strap, card]) {
+          expect(intersects(part, intro)).toBe(false);
+          expect(intersects(part, current)).toBe(false);
+        }
+        expect(intersects(strap, h1)).toBe(false);
+        expect(intersects(card, name2)).toBe(false);
+        if (viewportWidth < 860) {
+          expect(intersects(card, name1)).toBe(false);
+        }
       }
       expect(intersects(intro, current)).toBe(false);
 

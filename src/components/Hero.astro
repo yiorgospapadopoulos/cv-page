@@ -1,7 +1,9 @@
 ---
 import { profile } from '../content/profile';
 import { ownerName } from '../lib/site';
+import { promptText } from '../lib/terminal';
 import BadgePlaceholder from './BadgePlaceholder.astro';
+import Badge from './badge/Badge';
 
 const { hero } = profile;
 const [firstName, ...rest] = ownerName.split(' ');
@@ -39,7 +41,9 @@ const lastName = rest.join(' ');
     </ul>
   </div>
 
-  <BadgePlaceholder />
+  <BadgePlaceholder>
+    <Badge client:only="react" badge={profile.badge} prompt={promptText} />
+  </BadgePlaceholder>
 
   <h1 class="name">
     <span>{firstName}</span> <span>{lastName}</span>

@@ -27,6 +27,7 @@ const nameLines = badge.name.split(' ');
       <p class="card-pass">{badge.pass}</p>
     </div>
   </div>
+  <slot />
 </div>
 
 <style>
@@ -52,6 +53,48 @@ const nameLines = badge.name.split(' ');
     transform-origin: 50% 0;
     scale: 1;
     animation: sway 7s ease-in-out infinite alternate;
+  }
+
+  .badge-slot[data-badge-3d='ready'] .badge {
+    opacity: 0;
+    visibility: hidden;
+    animation-play-state: paused;
+    transition:
+      opacity 500ms ease,
+      visibility 0s linear 500ms;
+  }
+
+  .badge-slot :global(.badge-3d) {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 500ms ease;
+  }
+
+  .badge-slot :global(.badge-3d[data-ready]) {
+    opacity: 1;
+  }
+
+  .badge-slot :global(.badge-frame),
+  .badge-slot :global(.badge-stub) {
+    position: absolute;
+  }
+
+  .badge-slot :global(.badge-frame canvas) {
+    filter: drop-shadow(0 14px 18px rgb(17 17 17 / 0.16));
+  }
+
+  .badge-slot :global(.badge-hit) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: auto;
+    touch-action: none;
+    cursor: grab;
+  }
+
+  .badge-slot :global(.badge-hit[data-dragging]) {
+    cursor: grabbing;
   }
 
   .strap {
