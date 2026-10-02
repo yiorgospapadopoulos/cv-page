@@ -16,7 +16,9 @@ test.describe('hero', () => {
     await expect(page.getByText(hero.intro)).toBeVisible();
     const introduction = page.getByRole('banner');
     for (const line of hero.current) {
-      await expect(introduction.getByText(line, { exact: true })).toBeVisible();
+      await expect(
+        introduction.locator('ul.current').getByText(line, { exact: true }),
+      ).toBeVisible();
     }
     const heading = page.getByRole('heading', { level: 1 });
     await expect(heading.getByText('Yiorgos', { exact: true })).toBeVisible();
@@ -78,8 +80,7 @@ test.describe('more dialog', () => {
       await expect(dialog.getByText(paragraph)).toBeVisible();
     }
     for (const language of about.languages) {
-      await expect(dialog.getByText(language.name)).toBeVisible();
-      await expect(dialog.getByText(language.level)).toBeVisible();
+      await expect(dialog.getByText(language, { exact: true })).toBeVisible();
     }
 
     await dialog.getByRole('button', { name: 'Close' }).click();
