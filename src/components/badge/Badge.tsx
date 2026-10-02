@@ -8,7 +8,7 @@ import {
 } from 'react';
 import type { Badge as BadgeContent } from '../../content/types';
 import { supportsWebGL } from '../../lib/badge/capability';
-import { signalBadge } from '../../lib/badge/entrance';
+import { dropsIn, signalBadge } from '../../lib/badge/entrance';
 import { whenIdle } from '../../lib/badge/idle';
 import {
   readBadgeEnv,
@@ -237,11 +237,14 @@ export default function Badge({ badge, prompt }: Props) {
   const live = enabled && !failed && layout !== null;
   mounted.current = live;
   const stage = layout?.stage;
+  // The card drops in only on a first load that hid the static badge.
+  const drop = dropsIn(document.documentElement);
   return (
     <div
       ref={root}
       className="badge-3d"
       data-ready={shown || undefined}
+      data-drop={drop || undefined}
       aria-hidden="true"
     >
       {live && stage && (
@@ -262,6 +265,7 @@ export default function Badge({ badge, prompt }: Props) {
                 assets={scene.assets}
                 hero={hero}
                 active={onScreen && pageVisible}
+                drop={drop}
                 onReady={markReady}
                 onLost={lost}
               />

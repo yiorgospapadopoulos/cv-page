@@ -11,6 +11,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import * as THREE from 'three';
 import { chainLayout, chainSprings, segmentCount } from '../../lib/badge/chain';
+import { dropAnchor, dropLift, liftNodes } from '../../lib/badge/drop';
 import {
   faceDegrees,
   grabAnchor,
@@ -55,6 +56,7 @@ interface Props {
   hero: HTMLElement;
   hit: RefObject<HTMLDivElement | null>;
   active: boolean;
+  drop: boolean;
   onReady: () => void;
 }
 
@@ -162,10 +164,12 @@ export default function Lanyard({
   hero,
   hit,
   active,
+  drop,
   onReady,
 }: Props) {
   const { gl, camera, clock, invalidate } = useThree();
   const fixed = useRef<RapierRigidBody>(null);
+  const anchorMarker = useRef<THREE.Group>(null);
   const card = useRef<RapierRigidBody>(null);
   const cardGroup = useRef<THREE.Group>(null!);
   const drag = useRef<Drag | null>(null);
@@ -219,7 +223,16 @@ export default function Lanyard({
     () => cardInertia(world.card.mass, [cw, ch, thickness], world.skew),
     [cw, ch],
   );
-  const [cx, clipY] = layout.nodes[segments]!;
+  const [entrance] = useState(() => {
+    if (!drop) return null;
+    const restClip = layout.nodes[segments]![1];
+    const lift = dropLift(stage, restClip - jointY - ch / 2, world.drop.margin);
+    return { offset: [world.drop.side, lift] as [number, number], time: 0 };
+  });
+  const offset = entrance?.offset ?? [0, 0];
+  const nodes = liftNodes(layout.nodes, offset);
+  const [ax0, ay0] = nodes[0]!;
+  const [cx, clipY] = nodes[segments]!;
   const cy = clipY - jointY;
 
   const scene = useMemo(() => {
@@ -463,6 +476,17 @@ export default function Lanyard({
     const c = card.current;
     if (!c) return;
     const dt = world.timeStep;
+    if (entrance !== null && entrance.time < world.drop.duration) {
+      if (work.ready) entrance.time += dt;
+      const [x, y] = dropAnchor(
+        entrance.time,
+        stage.anchor,
+        entrance.offset,
+        world.drop.duration,
+      );
+      fixed.current?.setNextKinematicTranslation({ x, y, z: 0 });
+      for (const b of bodies()) b?.wakeUp();
+    }
     const d = drag.current;
     const pos = c.translation();
     const rot = c.rotation();
@@ -550,7 +574,9 @@ export default function Lanyard({
     group.updateWorldMatrix(true, false);
 
     const points = work.curve.points as THREE.Vector3[];
-    points[0]!.set(ax, ay, 0);
+    const top = anchorMarker.current;
+    if (top) top.getWorldPosition(points[0]!);
+    else points[0]!.set(ax, ay, 0);
     for (let i = 0; i < segments - 1; i++) {
       links[i]!.marker.current?.getWorldPosition(points[i + 1]!);
     }
@@ -607,6 +633,7 @@ export default function Lanyard({
     }
     const moving =
       drag.current !== null ||
+      (entrance !== null && entrance.time < world.drop.duration) ||
       all.some((b) => b!.isDynamic() && speed(b!) > world.restSpeed);
     work.still = moving ? 0 : work.still + 1;
     if (work.still < world.restFrames) state.invalidate();
@@ -616,12 +643,14 @@ export default function Lanyard({
     <>
       <RigidBody
         ref={fixed}
-        type="fixed"
+        type={entrance ? 'kinematicPosition' : 'fixed'}
         colliders={false}
-        position={[ax, ay, 0]}
-      />
+        position={[ax0, ay0, 0]}
+      >
+        <group ref={anchorMarker} />
+      </RigidBody>
       {links.map((link, i) => {
-        const [x, y] = layout.nodes[i + 1]!;
+        const [x, y] = nodes[i + 1]!;
         return (
           <RigidBody
             key={i}
@@ -654,14 +683,20 @@ export default function Lanyard({
         enabledTranslations={freedom.card.translations}
         enabledRotations={freedom.card.rotations}
         position={[cx, cy, 0]}
+        rotation={[0, entrance ? world.drop.yaw : 0, 0]}
       >
         <CuboidCollider
           args={[cw / 2, ch / 2, thickness / 2]}
           massProperties={inertia}
           collisionGroups={noCollisions}
         />
+        {/* Never culled, so the shaders compile while the card waits above the view. */}
         <group ref={cardGroup}>
-          <mesh geometry={scene.face} position={[0, 0, thickness / 2]}>
+          <mesh
+            geometry={scene.face}
+            position={[0, 0, thickness / 2]}
+            frustumCulled={false}
+          >
             <meshPhysicalMaterial
               map={scene.front}
               clearcoat={1}
@@ -677,6 +712,7 @@ export default function Lanyard({
             geometry={scene.face}
             position={[0, 0, -thickness / 2]}
             rotation={[0, Math.PI, 0]}
+            frustumCulled={false}
           >
             <meshPhysicalMaterial
               map={scene.back}
@@ -689,7 +725,7 @@ export default function Lanyard({
               polygonOffsetUnits={-1}
             />
           </mesh>
-          <mesh geometry={scene.edge}>
+          <mesh geometry={scene.edge} frustumCulled={false}>
             <meshBasicMaterial attach="material-0" visible={false} />
             <meshStandardMaterial
               attach="material-1"
@@ -699,7 +735,7 @@ export default function Lanyard({
             />
           </mesh>
           <group position={[0, ch / 2, 0]}>
-            <mesh position={[0, 0.06, 0]}>
+            <mesh position={[0, 0.06, 0]} frustumCulled={false}>
               <boxGeometry args={[0.15, 0.17, 0.045]} />
               <meshStandardMaterial
                 color="#d4d4d2"
@@ -707,7 +743,7 @@ export default function Lanyard({
                 roughness={0.3}
               />
             </mesh>
-            <mesh position={[0, clipTop - 0.01, 0]}>
+            <mesh position={[0, clipTop - 0.01, 0]} frustumCulled={false}>
               <torusGeometry args={[0.045, 0.014, 10, 24]} />
               <meshStandardMaterial
                 color="#c4c4c2"

@@ -77,6 +77,7 @@ interface Props {
   assets: BadgeAssets;
   hero: HTMLElement;
   active: boolean;
+  drop: boolean;
   onReady: () => void;
   onLost: () => void;
 }
@@ -104,6 +105,7 @@ export default function Scene({
   assets,
   hero,
   active,
+  drop,
   onReady,
   onLost,
 }: Props) {
@@ -145,6 +147,7 @@ export default function Scene({
               hero={hero}
               hit={hit}
               active={active}
+              drop={drop}
               onReady={onReady}
             />
           </Physics>

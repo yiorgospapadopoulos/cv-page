@@ -95,6 +95,12 @@ const line = splitAffiliation(badge.line);
     opacity: 1;
   }
 
+  /* The card starts above the view, so the canvas is shown before it drops. */
+  .badge-slot :global(.badge-3d[data-drop]) {
+    opacity: 1;
+    transition: none;
+  }
+
   .badge-slot :global(.badge-frame) {
     position: absolute;
   }

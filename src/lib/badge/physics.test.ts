@@ -39,6 +39,9 @@ describe('toWorld', () => {
     expect(world.settle.from).toBeCloseTo(physics.settle.from * 2);
     expect(world.settle.to).toBeCloseTo(physics.settle.to * 2);
     expect(world.settle.air).toBeCloseTo(physics.settle.air / 2);
+    expect(world.drop.side).toBeCloseTo(physics.drop.side * 2);
+    expect(world.drop.duration).toBe(physics.drop.duration);
+    expect(world.drop.margin).toBe(physics.drop.margin);
   });
 
   it('leaves mass, stiffness and damping unchanged', () => {

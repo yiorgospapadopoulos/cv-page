@@ -20,6 +20,8 @@ export const physics = {
   swivel: { twist: 0.15, tilt: 0.08 + 0.4 * 0.15, inertia: 0.03 },
   skew: 20,
   nudge: 0.3,
+  // Entrance: margin in pixels above the view, side offset in metres, seconds, radians.
+  drop: { margin: 40, side: -0.5, duration: 1.5, yaw: -0.35 },
   frustumMargin: 16,
   restSpeed: 0.01,
   restFrames: 45,
@@ -51,6 +53,7 @@ export function toWorld(p: Physics = physics) {
       limit: p.twist.limit / (m * m),
     },
     swivel: { ...p.swivel, inertia: p.swivel.inertia / (m * m) },
+    drop: { ...p.drop, side: p.drop.side / m },
     hover: { ...p.hover, scale: 1 / m },
     settle: {
       ...p.settle,
