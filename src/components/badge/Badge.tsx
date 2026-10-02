@@ -9,7 +9,12 @@ import {
 import type { Badge as BadgeContent } from '../../content/types';
 import { supportsWebGL } from '../../lib/badge/capability';
 import { whenIdle } from '../../lib/badge/idle';
-import { readBadgeEnv, wantsStaticBadge } from '../../lib/badge/loadPolicy';
+import {
+  readBadgeEnv,
+  wantsScrollSway,
+  wantsStaticBadge,
+} from '../../lib/badge/loadPolicy';
+import { createScrollSway, swayTransform } from '../../lib/badge/scrollSway';
 import { computeStage, type Rect, type Stage } from '../../lib/badge/stage';
 import type { BadgeAssets } from './Lanyard';
 
@@ -89,6 +94,7 @@ export default function Badge({ badge, prompt }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const [enabled, setEnabled] = useState(false);
+  const [sway, setSway] = useState(false);
   const [failed, setFailed] = useState(false);
   const [layout, setLayout] = useState<Layout | null>(null);
   const [hero, setHero] = useState<HTMLElement | null>(null);
@@ -107,14 +113,42 @@ export default function Badge({ badge, prompt }: Props) {
 
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const update = () =>
-      setEnabled(
-        !wantsStaticBadge(readBadgeEnv(window, () => supportsWebGL(document))),
-      );
+    const update = () => {
+      const env = readBadgeEnv(window, () => supportsWebGL(document));
+      setEnabled(!wantsStaticBadge(env));
+      setSway(wantsScrollSway(env));
+    };
     update();
     query.addEventListener('change', update);
     return () => query.removeEventListener('change', update);
   }, []);
+
+  useEffect(() => {
+    const slot = root.current?.closest<HTMLElement>('#badge-slot');
+    const card = slot?.querySelector<HTMLElement>('[data-badge]');
+    const hero = slot?.closest<HTMLElement>('.hero');
+    if (!sway || !card || !hero) return;
+    const controller = createScrollSway({
+      now: () => performance.now(),
+      scrollY: () => window.scrollY,
+      requestFrame: (callback) => requestAnimationFrame(callback),
+      cancelFrame: (handle) => cancelAnimationFrame(handle),
+      apply: (angle, lag) => {
+        card.style.transform = swayTransform(angle, lag);
+      },
+    });
+    const onScroll = () => controller.onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    const observer = new IntersectionObserver(([entry]) =>
+      controller.setActive(entry?.isIntersecting ?? true),
+    );
+    observer.observe(hero);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      observer.disconnect();
+      controller.stop();
+    };
+  }, [sway]);
 
   useEffect(() => {
     const slot = root.current?.closest<HTMLElement>('#badge-slot');

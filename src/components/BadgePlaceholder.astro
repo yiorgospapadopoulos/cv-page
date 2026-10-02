@@ -221,6 +221,21 @@ const [roleHead, roleOrg] = badge.role.split(' @ ');
     }
   }
 
+  @keyframes sway-soft {
+    from {
+      rotate: -0.6deg;
+    }
+    to {
+      rotate: 0.6deg;
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    .badge {
+      animation-name: sway-soft;
+    }
+  }
+
   @media (max-width: 859px) {
     .badge-slot {
       position: relative;
