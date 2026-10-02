@@ -37,7 +37,6 @@ export default defineConfig({
         '@react-three/fiber',
         '@react-three/drei',
         '@react-three/rapier',
-        'meshline',
       ],
     },
   },
