@@ -160,6 +160,39 @@ test.describe('badge placeholder', () => {
       expect(intersects(cardBox!, introBox!)).toBe(false);
     });
 
+    test('puts the university on its own line below the degree', async ({
+      page,
+    }) => {
+      await page.goto('/');
+      const layout = await page
+        .locator('#badge-slot .card')
+        .evaluate((card) => {
+          card.closest<HTMLElement>('[data-badge]')!.style.transform = 'none';
+          (card as HTMLElement).style.rotate = 'none';
+          const line = card.querySelector('.card-line')!;
+          const org = line.querySelector('.nowrap')!;
+          const head = document.createRange();
+          head.selectNodeContents(line.firstChild!);
+          const top = (el: Element | Range) => el.getBoundingClientRect().top;
+          return {
+            orgLines: org.getClientRects().length,
+            orgBelowHead: top(org) - top(head),
+            org: org.textContent,
+            chipsGap:
+              top(card.querySelector('.chips')!) -
+              org.getBoundingClientRect().bottom,
+            passGap:
+              top(card.querySelector('.card-pass')!) -
+              card.querySelector('.chips')!.getBoundingClientRect().bottom,
+          };
+        });
+      expect(layout.org).toBe('@ University of Thessaly');
+      expect(layout.orgLines).toBe(1);
+      expect(layout.orgBelowHead).toBeGreaterThan(5);
+      expect(layout.chipsGap).toBeGreaterThan(5);
+      expect(layout.passGap).toBeGreaterThan(20);
+    });
+
     test('has no running animation', async ({ page }) => {
       await page.goto('/');
       const running = await page

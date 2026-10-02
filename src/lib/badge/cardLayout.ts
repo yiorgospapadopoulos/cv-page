@@ -73,6 +73,29 @@ export const cardPalette = {
   ],
 } as const;
 
+export function splitAffiliation(text: string): {
+  head: string;
+  org?: string;
+} {
+  const at = text.indexOf(' @ ');
+  if (at < 0) return { head: text };
+  return { head: text.slice(0, at), org: text.slice(at + 3) };
+}
+
+// Everything from an at sign moves to the next line as one piece when it fits,
+// like the nowrap span on the HTML card; otherwise only "@ word" stays joined.
+function joinAffiliation(
+  words: string[],
+  maxWidth: number,
+  width: (text: string) => number,
+): string[] {
+  const at = words.indexOf('@');
+  if (at < 0 || at === words.length - 1) return words;
+  const tail = words.slice(at).join(' ');
+  if (width(tail) <= maxWidth) return [...words.slice(0, at), tail];
+  return [...words.slice(0, at), `@ ${words[at + 1]}`, ...words.slice(at + 2)];
+}
+
 export function wrapText(
   text: string,
   maxWidth: number,
@@ -80,11 +103,11 @@ export function wrapText(
 ): string[] {
   const lines: string[] = [];
   let current = '';
-  const words: string[] = [];
-  for (const word of text.split(/\s+/).filter(Boolean)) {
-    if (words.at(-1) === '@') words[words.length - 1] = `@ ${word}`;
-    else words.push(word);
-  }
+  const words = joinAffiliation(
+    text.split(/\s+/).filter(Boolean),
+    maxWidth,
+    width,
+  );
   for (const word of words) {
     const candidate = current === '' ? word : `${current} ${word}`;
     if (current !== '' && width(candidate) > maxWidth) {

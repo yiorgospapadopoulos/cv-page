@@ -9,6 +9,7 @@ import {
   layoutCardBack,
   layoutCardFront,
   mixWithWhite,
+  splitAffiliation,
   wrapText,
   type CardOp,
   type Measure,
@@ -127,6 +128,15 @@ describe('wrapText', () => {
     expect(wrapText('a b @', 50, width)).toEqual(['a b @']);
   });
 
+  it('moves everything from the at sign onto the next line when it fits', () => {
+    expect(wrapText('a @ b c', 50, width)).toEqual(['a', '@ b c']);
+    expect(wrapText('ab cd @ ef gh', 80, width)).toEqual(['ab cd', '@ ef gh']);
+  });
+
+  it('wraps after the at sign only when that part is too wide', () => {
+    expect(wrapText('ab @ cd ef', 60, width)).toEqual(['ab', '@ cd', 'ef']);
+  });
+
   it('collapses extra whitespace and returns nothing for blank text', () => {
     expect(wrapText('  a   b ', 100, width)).toEqual(['a b']);
     expect(wrapText('   ', 100, width)).toEqual([]);
@@ -146,6 +156,21 @@ describe('fitFontSize', () => {
 
   it('never goes below the minimum', () => {
     expect(fitFontSize(['abcdefghij'], 10, 10, widthAt, 4)).toBe(4);
+  });
+});
+
+describe('splitAffiliation', () => {
+  it('splits a line before the at sign', () => {
+    expect(splitAffiliation('MSc AI @ University of Thessaly')).toEqual({
+      head: 'MSc AI',
+      org: 'University of Thessaly',
+    });
+  });
+
+  it('keeps a line without an at sign whole', () => {
+    expect(splitAffiliation('Backend engineer')).toEqual({
+      head: 'Backend engineer',
+    });
   });
 });
 
@@ -212,6 +237,16 @@ describe('layoutCardFront', () => {
     expect(roleOps.map((op) => op.text)).toEqual([
       'ML & LLM Systems Engineer',
       '@ Zimmerman',
+    ]);
+  });
+
+  it('keeps the university together on the line after the degree', () => {
+    const lineOps = texts(face.ops).filter(
+      (op) => op.color === cardPalette.muted && op.font.includes('Serif'),
+    );
+    expect(lineOps.map((op) => op.text)).toEqual([
+      'MSc AI & Applications',
+      '@ University of Thessaly',
     ]);
   });
 

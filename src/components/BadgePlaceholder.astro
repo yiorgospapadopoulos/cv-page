@@ -1,9 +1,11 @@
 ---
 import { profile } from '../content/profile';
+import { splitAffiliation } from '../lib/badge/cardLayout';
 
 const { badge } = profile;
 const nameLines = badge.name.split(' ');
-const [roleHead, roleOrg] = badge.role.split(' @ ');
+const role = splitAffiliation(badge.role);
+const line = splitAffiliation(badge.line);
 ---
 
 <div id="badge-slot" class="badge-slot" aria-hidden="true">
@@ -19,11 +21,15 @@ const [roleHead, roleOrg] = badge.role.split(' @ ');
         ))}
       </p>
       <p class="card-role">
-        {roleHead}
-        {roleOrg !== undefined && ' '}
-        {roleOrg !== undefined && <span class="nowrap">@ {roleOrg}</span>}
+        {role.head}
+        {role.org !== undefined && ' '}
+        {role.org !== undefined && <span class="nowrap">@ {role.org}</span>}
       </p>
-      <p class="card-line">{badge.line}</p>
+      <p class="card-line">
+        {line.head}
+        {line.org !== undefined && ' '}
+        {line.org !== undefined && <span class="nowrap">@ {line.org}</span>}
+      </p>
       <ul class="chips">
         {badge.chips.map((chip, i) => (
           <li class={`chip chip-${i % 3}`}>{chip}</li>

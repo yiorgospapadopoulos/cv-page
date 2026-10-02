@@ -16,6 +16,9 @@ describe('profile', () => {
       'Yiorgos Papadopoulos is an ML & LLM Systems Engineer. I build AI that helps people, and the backends that make it reliable.',
     );
     expect(profile.badge.role).toBe('ML & LLM Systems Engineer @ Zimmerman');
+    expect(profile.badge.line).toBe(
+      'MSc AI & Applications @ University of Thessaly',
+    );
   });
 
   it('has a whoami profile that does not repeat the about paragraphs', () => {
