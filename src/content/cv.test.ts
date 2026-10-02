@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { profile } from './profile';
 
 const verifiedSha256 =
-  'fd22ae283006a92f48d6adede9ace6b439fe479e1938854093e01e168fe8976f';
+  'f3b769b94d9e514dc2e2df4ed25faf5e71292d0ceafdd1c3f25662ea2331d5d1';
 
 describe('published CV', () => {
   it('is the verified PDF', () => {
