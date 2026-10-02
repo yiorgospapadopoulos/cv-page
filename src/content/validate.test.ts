@@ -15,7 +15,7 @@ const base: Profile = {
   hero: { intro: 'Hello.', moreLabel: '[more]', current: ['Role @ Company'] },
   about: {
     paragraphs: ['A paragraph.'],
-    languages: [{ name: 'English', level: 'C2' }],
+    languages: ['English'],
   },
   badge: {
     name: 'Some Name',
@@ -106,6 +106,16 @@ describe('validateProfile', () => {
       p.about.paragraphs[0] = 'Georgios here';
     });
     expect(problems).toEqual(['about.paragraphs[0]: contains "Georgios"']);
+  });
+
+  it('checks every language name', () => {
+    const problems = change((p) => {
+      p.about.languages = ['English', ''];
+    });
+    expect(problems).toEqual(['about.languages[1]: empty string']);
+    expect(change((p) => (p.about.languages = []))).toEqual([
+      'about.languages: empty list',
+    ]);
   });
 
   it('checks every footer segment, label, and line', () => {

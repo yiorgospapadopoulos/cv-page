@@ -18,6 +18,10 @@ describe('profile', () => {
     expect(profile.badge.role).toBe('ML & LLM Systems Engineer @ Zimmerman');
   });
 
+  it('lists only the language names', () => {
+    expect(profile.about.languages).toEqual(['Greek', 'English']);
+  });
+
   it('takes the owner name and links from the site config', () => {
     expect(profile.badge.name).toBe(ownerName);
     expect(profile.links.linkedinUrl).toBe(links.linkedin);

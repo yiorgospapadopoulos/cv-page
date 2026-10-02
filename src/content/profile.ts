@@ -30,10 +30,7 @@ export const profile: Profile = {
       "I studied Computer Science and Telecommunications at the University of Thessaly, spent an Erasmus+ year at ISLA Polytechnic Institute in Porto, and I'm now doing an MSc in Artificial Intelligence and Applications.",
       'Outside code, I love fashion and the visual arts, and I try to bring that eye for detail into everything I build.',
     ],
-    languages: [
-      { name: 'Greek', level: 'Native' },
-      { name: 'English', level: 'C2, ECPE with honors' },
-    ],
+    languages: ['Greek', 'English'],
   },
   badge: {
     name: ownerName,

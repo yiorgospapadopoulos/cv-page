@@ -15,10 +15,7 @@ const { about } = profile;
     ))}
     <ul class="languages" aria-label="Languages">
       {about.languages.map((language) => (
-        <li>
-          <span class="lang-name">{language.name}</span>
-          <span class="lang-level">{language.level}</span>
-        </li>
+        <li>{language}</li>
       ))}
     </ul>
   </div>
@@ -98,16 +95,8 @@ const { about } = profile;
     font-size: 0.95rem;
   }
 
-  .lang-name {
+  .languages li {
     font-weight: 500;
-  }
-
-  .lang-name::after {
-    content: ' ';
-  }
-
-  .lang-level {
-    color: var(--ink-muted);
   }
 
   @keyframes pop {

@@ -13,14 +13,9 @@ export interface Hero {
   current: string[];
 }
 
-export interface Language {
-  name: string;
-  level: string;
-}
-
 export interface About {
   paragraphs: string[];
-  languages: Language[];
+  languages: string[];
 }
 
 export interface Badge {
