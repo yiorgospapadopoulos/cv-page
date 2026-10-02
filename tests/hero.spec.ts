@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { profile } from '../src/content/profile';
 import { grabPadding } from '../src/lib/badge/grab';
-import { hasWebGL } from './support';
+import { hasWebGL, isTouchFirst } from './support';
 
 const { hero, about } = profile;
 
@@ -215,7 +215,10 @@ for (const motion of ['no-preference', 'reduce'] as const) {
       await page.emulateMedia({ reducedMotion: motion });
       if (size) await page.setViewportSize(size);
       await page.goto('/');
-      const threeD = motion === 'no-preference' && (await hasWebGL(page));
+      const threeD =
+        motion === 'no-preference' &&
+        !(await isTouchFirst(page)) &&
+        (await hasWebGL(page));
       if (threeD) {
         await expect(page.locator('#badge-slot')).toHaveAttribute(
           'data-badge-3d',

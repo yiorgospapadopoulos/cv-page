@@ -14,10 +14,3 @@ export function supportsWebGL(doc: DocumentLike): boolean {
     return false;
   }
 }
-
-export function shouldRender3D(env: {
-  webgl: boolean;
-  reducedMotion: boolean;
-}): boolean {
-  return env.webgl && !env.reducedMotion;
-}

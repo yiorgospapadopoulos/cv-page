@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { profile } from '../src/content/profile';
-import { hasWebGL, noWebGL } from './support';
+import { hasWebGL, isTouchFirst, noWebGL, staticOnTouch } from './support';
 
 function collectErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -12,6 +12,7 @@ function collectErrors(page: Page): string[] {
 }
 
 async function waitForBadge(page: Page) {
+  test.skip(await isTouchFirst(page), staticOnTouch);
   test.skip(!(await hasWebGL(page)), noWebGL);
   await expect(page.locator('#badge-slot')).toHaveAttribute(
     'data-badge-3d',
@@ -339,50 +340,6 @@ test.describe('3d badge', () => {
     await page.mouse.up();
     const selected = await page.evaluate(() => String(window.getSelection()));
     expect(selected).toContain(profile.hero.current[0]!.split(' @ ')[0]);
-  });
-
-  test('a touch drag on the card does not scroll, a swipe on the name does', async ({
-    page,
-    browserName,
-    isMobile,
-  }) => {
-    test.skip(
-      browserName !== 'chromium' || !isMobile,
-      'Touch input runs on the Chromium phone',
-    );
-    await page.goto('/');
-    await waitForBadge(page);
-    const rest = await atRest(page);
-    const cdp = await page.context().newCDPSession(page);
-    const swipe = async (x: number, y: number) => {
-      await cdp.send('Input.dispatchTouchEvent', {
-        type: 'touchStart',
-        touchPoints: [{ x, y }],
-      });
-      for (let step = 1; step <= 10; step++) {
-        await cdp.send('Input.dispatchTouchEvent', {
-          type: 'touchMove',
-          touchPoints: [{ x: x + step * 6, y: y - step * 20 }],
-        });
-        await page.waitForTimeout(16);
-      }
-      await page.waitForTimeout(200);
-      const during = await pose(page);
-      await cdp.send('Input.dispatchTouchEvent', {
-        type: 'touchEnd',
-        touchPoints: [],
-      });
-      await page.waitForTimeout(400);
-      return during;
-    };
-
-    const moved = await swipe(rest.x, rest.y);
-    expect(await page.evaluate(() => window.scrollY)).toBe(0);
-    expect(Math.hypot(moved.x - rest.x, moved.y - rest.y)).toBeGreaterThan(40);
-
-    const name = await page.locator('h1').boundingBox();
-    await swipe(name!.x + 40, name!.y + name!.height / 2);
-    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(50);
   });
 
   test.describe('with reduced motion', () => {

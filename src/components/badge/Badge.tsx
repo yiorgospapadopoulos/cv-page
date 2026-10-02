@@ -7,17 +7,9 @@ import {
   type ReactNode,
 } from 'react';
 import type { Badge as BadgeContent } from '../../content/types';
-import { shouldRender3D, supportsWebGL } from '../../lib/badge/capability';
-import {
-  browserDeferDeps,
-  deferBadgeLoad,
-  whenIdle,
-} from '../../lib/badge/deferral';
-import {
-  badgeLoadMode,
-  readLoadEnv,
-  type LoadMode,
-} from '../../lib/badge/loadPolicy';
+import { supportsWebGL } from '../../lib/badge/capability';
+import { whenIdle } from '../../lib/badge/deferral';
+import { readBadgeEnv, wantsStaticBadge } from '../../lib/badge/loadPolicy';
 import { computeStage, type Rect, type Stage } from '../../lib/badge/stage';
 import type { BadgeAssets } from './Lanyard';
 
@@ -97,7 +89,6 @@ export default function Badge({ badge, prompt }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const [enabled, setEnabled] = useState(false);
-  const [mode, setMode] = useState<LoadMode>('idle');
   const [failed, setFailed] = useState(false);
   const [layout, setLayout] = useState<Layout | null>(null);
   const [hero, setHero] = useState<HTMLElement | null>(null);
@@ -116,11 +107,10 @@ export default function Badge({ badge, prompt }: Props) {
 
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const loadMode = badgeLoadMode(readLoadEnv(window));
-    setMode(loadMode);
-    const webgl = loadMode !== 'skip' && supportsWebGL(document);
     const update = () =>
-      setEnabled(shouldRender3D({ webgl, reducedMotion: query.matches }));
+      setEnabled(
+        !wantsStaticBadge(readBadgeEnv(window, () => supportsWebGL(document))),
+      );
     update();
     query.addEventListener('change', update);
     return () => query.removeEventListener('change', update);
@@ -151,16 +141,12 @@ export default function Badge({ badge, prompt }: Props) {
           if (!cancelled) setFailed(true);
         });
     };
-    const hero = root.current?.closest<HTMLElement>('.hero');
-    const cancel =
-      mode === 'deferred' && hero
-        ? deferBadgeLoad(browserDeferDeps(window, hero), load)
-        : whenIdle(window, load);
+    const cancel = whenIdle(window, load);
     return () => {
       cancelled = true;
       cancel();
     };
-  }, [enabled, failed, hasLayout, scene, mode, badge, prompt, bandWidth]);
+  }, [enabled, failed, hasLayout, scene, badge, prompt, bandWidth]);
 
   useEffect(() => {
     const el = frame.current;

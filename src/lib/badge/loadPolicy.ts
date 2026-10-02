@@ -3,24 +3,33 @@ export interface ConnectionInfo {
   effectiveType?: string;
 }
 
-export interface LoadEnv {
-  connection?: ConnectionInfo;
-  coarsePointer: boolean;
+export interface BadgeEnv {
+  coarse: boolean;
+  hoverNone: boolean;
+  saveData: boolean;
+  effectiveType: string | undefined;
+  reducedMotion: boolean;
+  webgl: () => boolean;
 }
-
-export type LoadMode = 'skip' | 'idle' | 'deferred';
 
 const slowTypes = new Set(['slow-2g', '2g']);
 
-export function badgeLoadMode(env: LoadEnv): LoadMode {
-  const { connection } = env;
-  if (
-    connection?.saveData === true ||
-    slowTypes.has(connection?.effectiveType ?? '')
-  ) {
-    return 'skip';
-  }
-  return env.coarsePointer ? 'deferred' : 'idle';
+export function isTouchFirst(env: Pick<BadgeEnv, 'coarse' | 'hoverNone'>) {
+  return env.coarse && env.hoverNone;
+}
+
+export function wantsStaticBadge(env: BadgeEnv): boolean {
+  return (
+    isTouchFirst(env) ||
+    env.saveData ||
+    slowTypes.has(env.effectiveType ?? '') ||
+    env.reducedMotion ||
+    !env.webgl()
+  );
+}
+
+export function wantsScrollSway(env: BadgeEnv): boolean {
+  return isTouchFirst(env) && !env.reducedMotion;
 }
 
 export interface EnvWindow {
@@ -28,9 +37,16 @@ export interface EnvWindow {
   matchMedia(query: string): { matches: boolean };
 }
 
-export function readLoadEnv(win: EnvWindow): LoadEnv {
+export function readBadgeEnv(win: EnvWindow, webgl: () => boolean): BadgeEnv {
+  const connection = (win.navigator as { connection?: ConnectionInfo })
+    .connection;
+  const matches = (query: string) => win.matchMedia(query).matches;
   return {
-    connection: (win.navigator as { connection?: ConnectionInfo }).connection,
-    coarsePointer: win.matchMedia('(pointer: coarse)').matches,
+    coarse: matches('(pointer: coarse)'),
+    hoverNone: matches('(hover: none)'),
+    saveData: connection?.saveData === true,
+    effectiveType: connection?.effectiveType,
+    reducedMotion: matches('(prefers-reduced-motion: reduce)'),
+    webgl,
   };
 }

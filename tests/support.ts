@@ -8,3 +8,11 @@ export async function hasWebGL(page: Page): Promise<boolean> {
 }
 
 export const noWebGL = 'WebGL is unavailable in this headless engine';
+
+export async function isTouchFirst(page: Page): Promise<boolean> {
+  return page.evaluate(
+    () => matchMedia('(hover: none) and (pointer: coarse)').matches,
+  );
+}
+
+export const staticOnTouch = 'Touch devices keep the static badge';
