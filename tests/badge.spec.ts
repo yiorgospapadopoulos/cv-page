@@ -411,3 +411,118 @@ test.describe('3d badge', () => {
     expect(errors).toEqual([]);
   });
 });
+
+function recordRotation(page: Page, ms: number) {
+  return page.locator('[data-badge]').evaluate(
+    (el: HTMLElement, duration) =>
+      new Promise<Array<{ t: number; angle: number; lag: number }>>(
+        (resolve) => {
+          const samples: Array<{ t: number; angle: number; lag: number }> = [];
+          const start = performance.now();
+          const step = () => {
+            const t = performance.now() - start;
+            const value = getComputedStyle(el).transform;
+            const m = value === 'none' ? new DOMMatrix() : new DOMMatrix(value);
+            samples.push({
+              t,
+              angle: (Math.atan2(m.b, m.a) * 180) / Math.PI,
+              lag: m.f,
+            });
+            if (t < duration) requestAnimationFrame(step);
+            else resolve(samples);
+          };
+          requestAnimationFrame(step);
+        },
+      ),
+    ms,
+  );
+}
+
+async function swipeUp(page: Page, x: number, y: number, distance = 220) {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ x, y }],
+  });
+  const steps = 8;
+  for (let step = 1; step <= steps; step++) {
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x, y: y - (distance * step) / steps }],
+    });
+    await page.waitForTimeout(16);
+  }
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchEnd',
+    touchPoints: [],
+  });
+}
+
+test.describe('static badge on touch devices', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    test.skip(!(await isTouchFirst(page)), 'Only touch-first devices');
+  });
+
+  test('shows the card and never creates a canvas', async ({ page }) => {
+    const errors = collectErrors(page);
+    await page.waitForTimeout(2500);
+    await expect(page.locator('[data-badge]')).toBeVisible();
+    await expect(page.locator('#badge-slot canvas')).toHaveCount(0);
+    await expect(page.locator('#badge-slot .badge-hit')).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+
+  test('lets a swipe on the card scroll the page', async ({ page }) => {
+    const card = await page.locator('#badge-slot .card').boundingBox();
+    await swipeUp(
+      page,
+      card!.x + card!.width / 2,
+      card!.y + card!.height / 2,
+      200,
+    );
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(100);
+    const style = await page
+      .locator('#badge-slot .card')
+      .evaluate((el) => getComputedStyle(el).touchAction);
+    expect(style).toBe('auto');
+    await expect(page.locator('#badge-slot')).toHaveCSS(
+      'pointer-events',
+      'none',
+    );
+  });
+
+  test('sways after a quick scroll and settles back to straight', async ({
+    page,
+  }) => {
+    const card = await page.locator('#badge-slot .card').boundingBox();
+    const recording = recordRotation(page, 4500);
+    await page.waitForTimeout(300);
+    await swipeUp(page, card!.x + card!.width / 2, card!.y + 40, 160);
+    const samples = await recording;
+
+    const before = samples.filter((s) => s.t < 250);
+    expect(before.every((s) => s.angle === 0)).toBe(true);
+    const widest = Math.max(...samples.map((s) => Math.abs(s.angle)));
+    expect(widest).toBeGreaterThan(0.5);
+    expect(widest).toBeLessThanOrEqual(6.01);
+    expect(Math.max(...samples.map((s) => Math.abs(s.lag)))).toBeLessThan(5);
+    const last = samples.at(-1)!;
+    expect(Math.abs(last.angle)).toBeLessThan(0.3);
+  });
+
+  test.describe('with reduced motion', () => {
+    test.use({ reducedMotion: 'reduce' });
+
+    test('does not sway when scrolling', async ({ page }) => {
+      const card = await page.locator('#badge-slot .card').boundingBox();
+      const recording = recordRotation(page, 2000);
+      await swipeUp(page, card!.x + card!.width / 2, card!.y + 40, 160);
+      const samples = await recording;
+      expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(50);
+      expect(samples.every((s) => s.angle === 0 && s.lag === 0)).toBe(true);
+    });
+  });
+});
