@@ -28,8 +28,8 @@ const base: Project = {
 
 describe('terminal chrome', () => {
   it('builds the prompt and the window title', () => {
-    expect(promptText).toBe('yiorgos@thessaloniki:~$');
-    expect(windowTitle).toBe('yiorgos@thessaloniki: ~');
+    expect(promptText).toBe('yiorgos@papadopoulos:~$');
+    expect(windowTitle).toBe('yiorgos@papadopoulos: ~');
   });
 
   it('lists the five sections in page order with unique ids', () => {

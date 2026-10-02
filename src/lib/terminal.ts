@@ -1,7 +1,7 @@
 import type { Project } from '../content/types';
 import { hashSeed } from './typing';
 
-export const terminalUser = 'yiorgos@thessaloniki';
+export const terminalUser = 'yiorgos@papadopoulos';
 export const promptText = `${terminalUser}:~$`;
 export const windowTitle = `${terminalUser}: ~`;
 

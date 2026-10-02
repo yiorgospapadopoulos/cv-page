@@ -68,7 +68,7 @@ body {
 </style>
 </head>
 <body>
-<p class="prompt">yiorgos@thessaloniki:~$<i></i></p>
+<p class="prompt">yiorgos@papadopoulos:~$<i></i></p>
 <h1 class="name"><span>Yiorgos</span><span>Papadopoulos</span></h1>
 <p class="role">ML &amp; LLM Systems Engineer</p>
 </body>

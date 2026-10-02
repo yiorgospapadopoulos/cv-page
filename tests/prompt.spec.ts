@@ -53,7 +53,7 @@ test.describe('the live prompt', () => {
       await expect(log(page)).toContainText(command.name);
       await expect(log(page)).toContainText(command.description);
     }
-    await expect(log(page)).toContainText('yiorgos@thessaloniki:~$ help');
+    await expect(log(page)).toContainText('yiorgos@papadopoulos:~$ help');
     await expect(input(page)).toHaveValue('');
   });
 
@@ -183,7 +183,7 @@ test.describe('the command panel', () => {
 
   test('clicking ls prints all five project slugs', async ({ page }) => {
     await button(page, 'ls').click();
-    await expect(log(page)).toContainText('yiorgos@thessaloniki:~$ ls');
+    await expect(log(page)).toContainText('yiorgos@papadopoulos:~$ ls');
     for (const project of projects) {
       await expect(log(page)).toContainText(project.slug);
       await expect(log(page)).toContainText(project.tagline);

@@ -140,7 +140,7 @@ test.describe('keyboard use', () => {
     await button.focus();
     await page.keyboard.press('Enter');
     await expect(page.locator('#try [data-log]')).toContainText(
-      `${'yiorgos@thessaloniki:~$'} whoami`,
+      `${'yiorgos@papadopoulos:~$'} whoami`,
     );
     await expect(button).toBeFocused();
   });
