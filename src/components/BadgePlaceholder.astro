@@ -223,33 +223,6 @@ const [roleHead, roleOrg] = badge.role.split(' @ ');
 
   @media (max-width: 859px) {
     .badge-slot {
-      position: relative;
-      left: auto;
-      display: flex;
-      flex: 1 1 0;
-      justify-content: center;
-      width: auto;
-      /* Lets the card hang over most of the first name line when space is short. */
-      min-height: calc(36px + 500px * var(--card-scale) - 13cqw);
-      padding: 12px 0 24px;
-    }
-
-    .badge {
-      position: relative;
-      align-self: stretch;
-      margin-left: 0;
-    }
-
-    .strap {
-      flex: 1 1 0;
-      min-height: var(--strap-length);
-      max-height: 340px;
-      height: auto;
-    }
-  }
-
-  @media (hover: none) and (pointer: coarse) {
-    .badge-slot {
       --w: min(80cqw, 380px, calc((100svh - 230px) / 1.6));
       position: relative;
       left: auto;

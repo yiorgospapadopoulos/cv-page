@@ -4,8 +4,7 @@ export interface ConnectionInfo {
 }
 
 export interface BadgeEnv {
-  coarse: boolean;
-  hoverNone: boolean;
+  wide: boolean;
   saveData: boolean;
   effectiveType: string | undefined;
   reducedMotion: boolean;
@@ -14,13 +13,11 @@ export interface BadgeEnv {
 
 const slowTypes = new Set(['slow-2g', '2g']);
 
-export function isTouchFirst(env: Pick<BadgeEnv, 'coarse' | 'hoverNone'>) {
-  return env.coarse && env.hoverNone;
-}
+export const wideQuery = '(min-width: 860px)';
 
 export function wantsStaticBadge(env: BadgeEnv): boolean {
   return (
-    isTouchFirst(env) ||
+    !env.wide ||
     env.saveData ||
     slowTypes.has(env.effectiveType ?? '') ||
     env.reducedMotion ||
@@ -29,7 +26,7 @@ export function wantsStaticBadge(env: BadgeEnv): boolean {
 }
 
 export function wantsScrollTilt(env: BadgeEnv): boolean {
-  return isTouchFirst(env) && !env.reducedMotion;
+  return !env.wide && !env.reducedMotion;
 }
 
 export interface EnvWindow {
@@ -42,8 +39,7 @@ export function readBadgeEnv(win: EnvWindow, webgl: () => boolean): BadgeEnv {
     .connection;
   const matches = (query: string) => win.matchMedia(query).matches;
   return {
-    coarse: matches('(pointer: coarse)'),
-    hoverNone: matches('(hover: none)'),
+    wide: matches(wideQuery),
     saveData: connection?.saveData === true,
     effectiveType: connection?.effectiveType,
     reducedMotion: matches('(prefers-reduced-motion: reduce)'),

@@ -7,8 +7,7 @@ import {
 } from './loadPolicy';
 
 const desktop: BadgeEnv = {
-  coarse: false,
-  hoverNone: false,
+  wide: true,
   saveData: false,
   effectiveType: '4g',
   reducedMotion: false,
@@ -23,15 +22,8 @@ describe('wantsStaticBadge', () => {
     );
   });
 
-  it('stays static when the primary pointer is coarse and cannot hover', () => {
-    expect(
-      wantsStaticBadge({ ...desktop, coarse: true, hoverNone: true }),
-    ).toBe(true);
-  });
-
-  it('keeps the 3d badge when a touch screen also has a mouse', () => {
-    expect(wantsStaticBadge({ ...desktop, coarse: true })).toBe(false);
-    expect(wantsStaticBadge({ ...desktop, hoverNone: true })).toBe(false);
+  it('stays static below the width breakpoint on any device', () => {
+    expect(wantsStaticBadge({ ...desktop, wide: false })).toBe(true);
   });
 
   it('stays static when the user asks to save data', () => {
@@ -63,7 +55,7 @@ describe('wantsStaticBadge', () => {
   it('only probes webgl when nothing else has decided', () => {
     const webgl = vi.fn(() => true);
     for (const override of [
-      { coarse: true, hoverNone: true },
+      { wide: false },
       { saveData: true },
       { effectiveType: '2g' },
       { reducedMotion: true },
@@ -77,23 +69,17 @@ describe('wantsStaticBadge', () => {
 });
 
 describe('wantsScrollTilt', () => {
-  it('tilts only on touch-first devices without reduced motion', () => {
-    const touch = { ...desktop, coarse: true, hoverNone: true };
-    expect(wantsScrollTilt(touch)).toBe(true);
-    expect(wantsScrollTilt({ ...touch, reducedMotion: true })).toBe(false);
+  it('tilts below the width breakpoint without reduced motion', () => {
+    const narrow = { ...desktop, wide: false };
+    expect(wantsScrollTilt(narrow)).toBe(true);
+    expect(wantsScrollTilt({ ...narrow, reducedMotion: true })).toBe(false);
     expect(wantsScrollTilt(desktop)).toBe(false);
-    expect(wantsScrollTilt({ ...desktop, coarse: true })).toBe(false);
   });
 
-  it('keeps tilting on a touch device that saves data', () => {
-    expect(
-      wantsScrollTilt({
-        ...desktop,
-        coarse: true,
-        hoverNone: true,
-        saveData: true,
-      }),
-    ).toBe(true);
+  it('keeps tilting on a narrow screen that saves data', () => {
+    expect(wantsScrollTilt({ ...desktop, wide: false, saveData: true })).toBe(
+      true,
+    );
   });
 });
 
@@ -104,21 +90,16 @@ describe('readBadgeEnv', () => {
   });
   const webgl = () => true;
 
-  it('reads the connection, pointer, hover and motion preferences', () => {
+  it('reads the connection, width and motion preferences', () => {
     const env = readBadgeEnv(
-      win(
-        [
-          '(pointer: coarse)',
-          '(hover: none)',
-          '(prefers-reduced-motion: reduce)',
-        ],
-        { saveData: true, effectiveType: '2g' },
-      ),
+      win(['(min-width: 860px)', '(prefers-reduced-motion: reduce)'], {
+        saveData: true,
+        effectiveType: '2g',
+      }),
       webgl,
     );
     expect(env).toEqual({
-      coarse: true,
-      hoverNone: true,
+      wide: true,
       saveData: true,
       effectiveType: '2g',
       reducedMotion: true,
@@ -126,10 +107,9 @@ describe('readBadgeEnv', () => {
     });
   });
 
-  it('defaults to a desktop without a connection api', () => {
+  it('reads a narrow viewport without a connection api', () => {
     expect(readBadgeEnv(win([]), webgl)).toEqual({
-      coarse: false,
-      hoverNone: false,
+      wide: false,
       saveData: false,
       effectiveType: undefined,
       reducedMotion: false,
