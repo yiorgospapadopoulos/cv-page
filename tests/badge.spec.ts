@@ -55,6 +55,47 @@ async function atRest(page: Page): Promise<Pose> {
   return previous;
 }
 
+interface Sample {
+  t: number;
+  x: number;
+  y: number;
+}
+
+// Records the projected card centre every frame, in hero coordinates.
+function track(page: Page, ms: number): Promise<Sample[]> {
+  return page.locator('#badge-slot .badge-hit').evaluate(
+    (el: HTMLElement, duration) =>
+      new Promise<Sample[]>((resolve) => {
+        const samples: Sample[] = [];
+        const start = performance.now();
+        const step = () => {
+          const t = performance.now() - start;
+          samples.push({ t, x: Number(el.dataset.x), y: Number(el.dataset.y) });
+          if (t < duration) requestAnimationFrame(step);
+          else resolve(samples);
+        };
+        requestAnimationFrame(step);
+      }),
+    ms,
+  );
+}
+
+function peakSpeed(samples: Sample[]): number {
+  let peak = 0;
+  for (let i = 1; i < samples.length; i++) {
+    const a = samples[i - 1]!;
+    const b = samples[i]!;
+    const dt = (b.t - a.t) / 1000;
+    if (dt > 0) peak = Math.max(peak, Math.hypot(b.x - a.x, b.y - a.y) / dt);
+  }
+  return peak;
+}
+
+async function heroOrigin(page: Page) {
+  const hero = await page.locator('header.hero').boundingBox();
+  return { x: hero!.x, y: hero!.y };
+}
+
 async function moveTo(page: Page, x: number, y: number, steps = 20) {
   await page.mouse.move(x, y, { steps });
   await page.waitForTimeout(700);
@@ -183,6 +224,78 @@ test.describe('3d badge', () => {
     const settled = await atRest(page);
     expect(Math.hypot(settled.x - rest.x, settled.y - rest.y)).toBeLessThan(20);
     expect(Math.abs(settled.angle)).toBeLessThan(6);
+  });
+
+  test('drops back gently after being pulled straight down', async ({
+    page,
+    browserName,
+    isMobile,
+  }) => {
+    chromiumDesktop(browserName, isMobile);
+    await page.goto('/');
+    await waitForBadge(page);
+    const rest = await atRest(page);
+    const origin = await heroOrigin(page);
+
+    await page.mouse.move(rest.x, rest.y);
+    await page.mouse.down();
+    await moveTo(page, rest.x, rest.y + 150, 15);
+    const held = await pose(page);
+    expect(held.y - rest.y).toBeGreaterThan(30);
+    const recording = track(page, 3000);
+    await page.mouse.up();
+    const samples = await recording;
+
+    const restY = rest.y - origin.y;
+    const highest = Math.min(...samples.map((s) => s.y));
+    expect(restY - highest).toBeLessThan(45);
+    expect(peakSpeed(samples)).toBeLessThan(1200);
+  });
+
+  test('swings a few times after a sideways fling and stays below the anchor', async ({
+    page,
+    browserName,
+    isMobile,
+  }) => {
+    chromiumDesktop(browserName, isMobile);
+    await page.goto('/');
+    await waitForBadge(page);
+    const rest = await atRest(page);
+    const origin = await heroOrigin(page);
+
+    await page.mouse.move(rest.x, rest.y - 60);
+    await page.mouse.down();
+    for (let step = 1; step <= 10; step++) {
+      await page.mouse.move(rest.x + step * 30, rest.y - 60 - step * 2);
+      await page.waitForTimeout(16);
+    }
+    const recording = track(page, 4000);
+    await page.mouse.up();
+    const samples = await recording;
+
+    const restX = rest.x - origin.x;
+    const right = Math.max(...samples.map((s) => s.x - restX));
+    const left = Math.min(...samples.map((s) => s.x - restX));
+    expect(right).toBeGreaterThan(60);
+    expect(left).toBeLessThan(-20);
+    expect(Math.min(...samples.map((s) => s.y))).toBeGreaterThan(0);
+    expect(peakSpeed(samples)).toBeLessThan(2500);
+  });
+
+  test('shows the whole strap label at rest', async ({ page }) => {
+    await page.goto('/');
+    await waitForBadge(page);
+    await atRest(page);
+    const strap = await page
+      .locator('#badge-slot .badge-hit')
+      .evaluate((el: HTMLElement) => ({
+        visible: Number(el.dataset.strap),
+        top: Number(el.dataset.labelTop),
+        bottom: Number(el.dataset.labelBottom),
+      }));
+    expect(strap.bottom).toBeGreaterThan(0);
+    expect(strap.top).toBeGreaterThan(strap.bottom);
+    expect(strap.top).toBeLessThanOrEqual(strap.visible);
   });
 
   test('shows a grab cursor over the card', async ({

@@ -201,6 +201,9 @@ const sizes = [
   { name: 'native', size: null },
   { name: '375x812', size: { width: 375, height: 812 } },
   { name: '800x600', size: { width: 800, height: 600 } },
+  { name: '800x1000', size: { width: 800, height: 1000 } },
+  { name: '1280x720', size: { width: 1280, height: 720 } },
+  { name: '1280x800', size: { width: 1280, height: 800 } },
   { name: '1440x900', size: { width: 1440, height: 900 } },
 ] as const;
 
@@ -222,10 +225,9 @@ for (const motion of ['no-preference', 'reduce'] as const) {
       }
 
       const viewportWidth = await page.evaluate(() => window.innerWidth);
-      const [intro, current, name1, name2, h1] = await Promise.all([
+      const [intro, current, name2, h1] = await Promise.all([
         box(page, '.intro'),
         box(page, '.current'),
-        box(page, 'h1 span:nth-child(1)'),
         box(page, 'h1 span:nth-child(2)'),
         box(page, 'h1'),
       ]);
@@ -248,9 +250,20 @@ for (const motion of ['no-preference', 'reduce'] as const) {
         };
         expect(intersects(card, intro)).toBe(false);
         expect(intersects(card, current)).toBe(false);
+        expect(intersects(card, name2)).toBe(false);
+        const label = await page
+          .locator('#badge-slot .badge-hit')
+          .evaluate((el: HTMLElement) => ({
+            visible: Number(el.dataset.strap),
+            top: Number(el.dataset.labelTop),
+            bottom: Number(el.dataset.labelBottom),
+          }));
+        expect(label.bottom).toBeGreaterThan(0);
+        expect(label.top).toBeLessThanOrEqual(label.visible);
       } else {
-        const [strap, card] = await Promise.all([
+        const [strap, text, card] = await Promise.all([
           box(page, '#badge-slot .strap'),
+          box(page, '#badge-slot .strap-text'),
           box(page, '#badge-slot .card'),
         ]);
         for (const part of [strap, card]) {
@@ -259,9 +272,10 @@ for (const motion of ['no-preference', 'reduce'] as const) {
         }
         expect(intersects(strap, h1)).toBe(false);
         expect(intersects(card, name2)).toBe(false);
-        if (viewportWidth < 860) {
-          expect(intersects(card, name1)).toBe(false);
-        }
+        expect(text.y).toBeGreaterThanOrEqual(Math.max(strap.y, 0));
+        expect(text.y + text.height).toBeLessThanOrEqual(
+          strap.y + strap.height,
+        );
       }
       expect(intersects(intro, current)).toBe(false);
 
