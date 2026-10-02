@@ -57,12 +57,56 @@ export function screenBounds(points: [number, number][], padding: number) {
   };
 }
 
-export function limitSpeed<T extends { x: number; y: number; z: number }>(
-  v: T,
-  max: number,
-): T | { x: number; y: number; z: number } {
-  const speed = Math.hypot(v.x, v.y, v.z);
-  if (speed <= max) return v;
-  const k = max / speed;
-  return { x: v.x * k, y: v.y * k, z: v.z * k };
+interface GripState {
+  target: Vec3;
+  point: Vec3;
+  centre: Vec3;
+  linvel: Vec3;
+  angvel: Vec3;
+  mass: number;
+  dt: number;
+}
+
+// Critically damped spring from the grabbed point to the pointer, integrated
+// implicitly so a stiff pull cannot overshoot. Returns the impulse for one step.
+export function gripImpulse(
+  { target, point, centre, linvel, angvel, mass, dt }: GripState,
+  grip: { strength: number; radius: number; maxAccel: number },
+): Vec3 {
+  const r = [0, 1, 2].map((i) => point[i]! - centre[i]!) as Vec3;
+  const vx = linvel[0] + angvel[1] * r[2] - angvel[2] * r[1];
+  const vy = linvel[1] + angvel[2] * r[0] - angvel[0] * r[2];
+  const m = mass / (1 + (r[0] ** 2 + r[1] ** 2 + r[2] ** 2) / grip.radius);
+  const k = grip.strength * m;
+  const c = 2 * Math.sqrt(grip.strength) * m;
+  const d = 1 + (c * dt + k * dt * dt) / m;
+  let fx = (k * (target[0] - point[0]) - c * vx) / d;
+  let fy = (k * (target[1] - point[1]) - c * vy) / d;
+  const limit = grip.maxAccel * mass;
+  const size = Math.hypot(fx, fy);
+  if (size > limit) {
+    fx *= limit / size;
+    fy *= limit / size;
+  }
+  return [fx * dt, fy * dt, 0];
+}
+
+export function hoverImpulse(
+  dx: number,
+  dy: number,
+  hover: {
+    limitX: number;
+    limitY: number;
+    scaleX: number;
+    scaleY: number;
+    force: number;
+    scale: number;
+  },
+): Vec3 {
+  const k = hover.force * hover.scale;
+  return [
+    clamp(dx, -hover.limitX, hover.limitX) * hover.scaleX * k,
+    -clamp(dy, -hover.limitY, hover.limitY) * hover.scaleY * k,
+    0,
+  ];
 }

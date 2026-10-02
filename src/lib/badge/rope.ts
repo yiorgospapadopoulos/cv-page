@@ -1,38 +1,21 @@
 import type { Vec3 } from './stage';
 
-export const ropeSegments = 5;
-
-export function ropeLayout(
-  anchor: [number, number],
-  ropeLength: number,
-  jointY: number,
-  segments = ropeSegments,
-) {
-  if (segments < 1) throw new RangeError('segments must be at least 1');
-  const [x, y] = anchor;
-  const segment = ropeLength / segments;
-  const joints = Array.from({ length: segments }, (_, i): [number, number] => [
-    x,
-    y - (i + 1) * segment,
-  ]);
-  const card: [number, number] = [x, y - ropeLength - jointY];
-  return { segment, joints, card };
-}
-
-// Label coordinates fixed to the rope material, zero at the card end so the
-// visible text never slides when the rope bends or the hero resizes.
+// Label coordinates fixed to the strap material, so the text never slides
+// along the strap as it bends; `phase` is the coordinate at the card end.
 export function strapCoordinates(
   intervals: number,
   divisionsPerInterval: number,
   segmentLength: number,
   tileLength: number,
+  phase = 0,
 ): number[] {
   if (tileLength <= 0) throw new RangeError('tileLength must be positive');
   const total = intervals * divisionsPerInterval;
   return Array.from(
     { length: total + 1 },
     (_, j) =>
-      ((j / divisionsPerInterval - intervals) * segmentLength) / tileLength,
+      ((j / divisionsPerInterval - intervals) * segmentLength) / tileLength +
+      phase,
   );
 }
 
@@ -73,23 +56,3 @@ export function ribbonIndices(count: number): Uint16Array {
   }
   return indices;
 }
-
-export const physics = {
-  gravity: -45,
-  timeStep: 1 / 60,
-  solverIterations: 8,
-  segmentMass: 0.04,
-  segmentDamping: 1.5,
-  cardMass: 0.4,
-  cardLinearDamping: 1.6,
-  cardAngularDamping: 3.5,
-  handStiffness: 260,
-  handDamping: 14,
-  facing: 0.25,
-  maxSpeed: 14,
-  flipSpin: 14,
-  nudge: 1,
-  frustumMargin: 16,
-  restSpeed: 0.02,
-  restFrames: 45,
-} as const;

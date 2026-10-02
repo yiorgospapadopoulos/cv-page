@@ -15,11 +15,12 @@ import {
   strapTile,
   type Ctx2D,
 } from '../../lib/badge/draw';
-import { physics } from '../../lib/badge/rope';
+import { toWorld } from '../../lib/badge/physics';
 import { clientToNdc, type Stage } from '../../lib/badge/stage';
 import Lanyard, { type BadgeAssets } from './Lanyard';
 
 const textureScale = 4;
+const world = toWorld();
 
 function context(canvas: HTMLCanvasElement): Ctx2D {
   const ctx = canvas.getContext('2d');
@@ -67,6 +68,7 @@ export async function prepareAssets(
     back: paint(layoutCardBack({ prompt, url: badge.strap }, options)),
     strap,
     strapLength: tile.length,
+    strapLabel: tile.label,
   };
 }
 
@@ -130,9 +132,9 @@ export default function Scene({
         <ambientLight intensity={2.6} />
         <Suspense fallback={null}>
           <Physics
-            gravity={[0, physics.gravity, 0]}
-            timeStep={physics.timeStep}
-            numSolverIterations={physics.solverIterations}
+            gravity={[0, world.gravity, 0]}
+            timeStep={world.timeStep}
+            numSolverIterations={world.solverIterations}
             updatePriority={-1}
             interpolate
           >

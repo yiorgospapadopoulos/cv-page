@@ -1,29 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  physics,
-  ribbon,
-  ribbonIndices,
-  ropeLayout,
-  strapCoordinates,
-} from './rope';
-
-describe('ropeLayout', () => {
-  it('hangs equal segments straight down from the anchor', () => {
-    const layout = ropeLayout([1, 3], 2, 0.5, 4);
-    expect(layout.segment).toBeCloseTo(0.5);
-    expect(layout.joints).toHaveLength(4);
-    layout.joints.forEach(([x, y], i) => {
-      expect(x).toBe(1);
-      expect(y).toBeCloseTo(3 - (i + 1) * 0.5);
-    });
-    expect(layout.card[0]).toBe(1);
-    expect(layout.card[1]).toBeCloseTo(3 - 2 - 0.5);
-  });
-
-  it('rejects a rope without segments', () => {
-    expect(() => ropeLayout([0, 0], 1, 0, 0)).toThrow(RangeError);
-  });
-});
+import { ribbon, ribbonIndices, strapCoordinates } from './rope';
 
 describe('strapCoordinates', () => {
   it('fixes the label to the rope and ends at zero on the card', () => {
@@ -35,6 +11,12 @@ describe('strapCoordinates', () => {
     for (let i = 1; i < u.length; i++) {
       expect(u[i]!).toBeGreaterThan(u[i - 1]!);
     }
+  });
+
+  it('shifts the label by the phase', () => {
+    const u = strapCoordinates(2, 4, 0.5, 2, 0.3);
+    expect(u[0]).toBeCloseTo(-0.2);
+    expect(u[8]).toBeCloseTo(0.3);
   });
 
   it('rejects an empty tile', () => {
@@ -114,18 +96,5 @@ describe('ribbonIndices', () => {
     expect(Array.from(ribbonIndices(3))).toEqual([
       0, 1, 2, 2, 1, 3, 2, 3, 4, 4, 3, 5,
     ]);
-  });
-});
-
-describe('physics tuning', () => {
-  it('damps the hand spring without overshooting wildly', () => {
-    const critical = 2 * Math.sqrt(physics.handStiffness * physics.cardMass);
-    const ratio = physics.handDamping / critical;
-    expect(ratio).toBeGreaterThan(0.4);
-    expect(ratio).toBeLessThan(1.2);
-  });
-
-  it('keeps the rope lighter than the card', () => {
-    expect(physics.segmentMass * 5).toBeLessThan(physics.cardMass);
   });
 });

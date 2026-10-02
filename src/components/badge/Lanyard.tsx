@@ -5,29 +5,30 @@ import {
   RigidBody,
   interactionGroups,
   useBeforePhysicsStep,
-  useRapier,
-  useRopeJoint,
-  useSphericalJoint,
+  useSpringJoint,
   type RapierRigidBody,
 } from '@react-three/rapier';
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import * as THREE from 'three';
+import { chainLayout, chainSprings, segmentCount } from '../../lib/badge/chain';
 import {
   grabAnchor,
   grabPadding,
+  gripImpulse,
+  hoverImpulse,
   isTap,
-  limitSpeed,
   screenBounds,
   tiltDegrees,
 } from '../../lib/badge/grab';
 import {
-  physics,
-  ribbon,
-  ribbonIndices,
-  ropeLayout,
-  ropeSegments,
-  strapCoordinates,
-} from '../../lib/badge/rope';
+  freeDamping,
+  toWorld,
+  twistRate,
+  unwrapAngle,
+  yawAngle,
+} from '../../lib/badge/physics';
+import { ribbon, ribbonIndices, strapCoordinates } from '../../lib/badge/rope';
+import { arcAt, labelPhase, visibleArc } from '../../lib/badge/strap';
 import {
   clampToFrustum,
   screenToPlane,
@@ -41,6 +42,7 @@ export interface BadgeAssets {
   back: HTMLCanvasElement;
   strap: HTMLCanvasElement;
   strapLength: number;
+  strapLabel: number;
 }
 
 interface Props {
@@ -52,43 +54,49 @@ interface Props {
   onReady: () => void;
 }
 
-type World = ReturnType<typeof useRapier>['world'];
-
 interface Drag {
-  joint: ReturnType<World['createImpulseJoint']>;
   pointerId: number;
   target: [number, number];
+  local: THREE.Vector3;
   press: { x: number; y: number; time: number };
+}
+
+interface Hover {
+  x: number;
+  y: number;
+  impulse: Vec3;
+  point: THREE.Vector3;
 }
 
 type BodyRef = RefObject<RapierRigidBody | null>;
 
+const world = toWorld();
 const thickness = 0.035;
-const divisions = 16;
+const divisions = 6;
 const noCollisions = interactionGroups(0, []);
+const planar: [boolean, boolean, boolean] = [true, true, false];
 
-const segmentProps = {
-  type: 'dynamic',
-  canSleep: true,
-  colliders: false,
-  linearDamping: physics.segmentDamping,
-  angularDamping: physics.segmentDamping,
-  enabledTranslations: [true, true, false] as [boolean, boolean, boolean],
-} as const;
-
-function RopeLink({
+function SpringLink({
   a,
   b,
-  length,
+  anchorA,
+  anchorB,
+  rest,
+  stiffness,
+  damping,
 }: {
   a: BodyRef;
   b: BodyRef;
-  length: number;
+  anchorA: Vec3;
+  anchorB: Vec3;
+  rest: number;
+  stiffness: number;
+  damping: number;
 }) {
-  useRopeJoint(
+  useSpringJoint(
     a as RefObject<RapierRigidBody>,
     b as RefObject<RapierRigidBody>,
-    [[0, 0, 0], [0, 0, 0], length],
+    [anchorA, anchorB, rest, stiffness, damping],
   );
   return null;
 }
@@ -139,6 +147,12 @@ function speed(body: RapierRigidBody): number {
   return Math.hypot(v.x, v.y, v.z) + Math.hypot(w.x, w.y, w.z);
 }
 
+const toVec3 = (v: { x: number; y: number; z: number }): Vec3 => [
+  v.x,
+  v.y,
+  v.z,
+];
+
 export default function Lanyard({
   stage,
   assets,
@@ -147,39 +161,59 @@ export default function Lanyard({
   active,
   onReady,
 }: Props) {
-  const { world, rapier } = useRapier();
   const { gl, camera, clock, invalidate } = useThree();
   const fixed = useRef<RapierRigidBody>(null);
   const card = useRef<RapierRigidBody>(null);
-  const hand = useRef<RapierRigidBody>(null);
-  const links = useMemo(
-    () =>
-      Array.from({ length: ropeSegments }, () => ({
-        body: { current: null } as RefObject<RapierRigidBody | null>,
-        marker: { current: null } as RefObject<THREE.Group | null>,
-      })),
-    [],
-  );
   const cardGroup = useRef<THREE.Group>(null!);
   const drag = useRef<Drag | null>(null);
+  const hover = useRef<Hover | null>(null);
   const [dragging, setDragging] = useState(false);
   const [hovered, setHovered] = useState(false);
 
   const { width: cw, height: ch } = stage.card;
   const clipTop = stage.clipGap;
   const jointY = ch / 2 + clipTop;
-  const layout = ropeLayout(stage.anchor, stage.ropeLength, jointY);
-  const [ax, ay] = stage.anchor;
-  const [cx, cy] = layout.card;
-
-  useSphericalJoint(
-    links[ropeSegments - 1]!.body as RefObject<RapierRigidBody>,
-    card as RefObject<RapierRigidBody>,
-    [
-      [0, 0, 0],
-      [0, jointY, 0],
-    ],
+  const segments = segmentCount(stage.ropeLength, world.strap.segment);
+  const layout = useMemo(
+    () =>
+      chainLayout({
+        anchor: stage.anchor,
+        length: stage.ropeLength,
+        segments,
+        stiffness: world.strap.stiffness,
+        dampingRatio: world.strap.dampingRatio,
+        linkMass: world.strap.linkMass,
+        endMass: world.card.mass,
+        gravity: world.gravity,
+      }),
+    [stage.anchor, stage.ropeLength, segments],
   );
+  const springs = useMemo(
+    () =>
+      chainSprings(
+        segments + 1,
+        layout.segment,
+        world.strap.stiffness,
+        world.strap.dampingRatio,
+        layout.restScale,
+      ),
+    [segments, layout],
+  );
+  const links = useMemo(
+    () =>
+      Array.from({ length: segments - 1 }, () => ({
+        body: { current: null } as RefObject<RapierRigidBody | null>,
+        marker: { current: null } as RefObject<THREE.Group | null>,
+      })),
+    [segments],
+  );
+  const node = (i: number): BodyRef =>
+    i === 0 ? fixed : i === segments ? card : links[i - 1]!.body;
+  const nodeAnchor = (i: number): Vec3 =>
+    i === segments ? [0, jointY, 0] : [0, 0, 0];
+  const [ax, ay] = stage.anchor;
+  const [cx, clipY] = layout.nodes[segments]!;
+  const cy = clipY - jointY;
 
   const scene = useMemo(() => {
     const anisotropy = gl.capabilities.getMaxAnisotropy();
@@ -200,7 +234,7 @@ export default function Lanyard({
     const strap = canvasTexture(assets.strap, anisotropy);
     strap.wrapS = THREE.RepeatWrapping;
     strap.wrapT = THREE.ClampToEdgeWrapping;
-    const count = ropeSegments * divisions + 1;
+    const count = segments * divisions + 1;
     const band = new THREE.BufferGeometry();
     band.setAttribute(
       'position',
@@ -220,13 +254,25 @@ export default function Lanyard({
       strap,
       band,
       u: strapCoordinates(
-        ropeSegments,
+        segments,
         divisions,
         layout.segment * stage.pxPerUnit,
         assets.strapLength,
+        labelPhase(stage.strapVisible, assets.strapLabel, assets.strapLength),
       ),
+      labelEnd: assets.strapLabel / assets.strapLength,
     };
-  }, [gl, assets, cw, ch, clipTop, stage.pxPerUnit, layout.segment]);
+  }, [
+    gl,
+    assets,
+    cw,
+    ch,
+    clipTop,
+    stage.pxPerUnit,
+    stage.strapVisible,
+    layout.segment,
+    segments,
+  ]);
 
   useEffect(
     () => () => {
@@ -257,22 +303,25 @@ export default function Lanyard({
   const work = useMemo(
     () => ({
       curve: new THREE.CatmullRomCurve3(
-        Array.from({ length: ropeSegments + 1 }, () => new THREE.Vector3()),
+        Array.from({ length: segments + 1 }, () => new THREE.Vector3()),
         false,
         'centripetal',
       ),
       v: new THREE.Vector3(),
+      p: new THREE.Vector3(),
       q: new THREE.Quaternion(),
       frames: 0,
+      yaw: 0,
+      facing: 0,
       still: 0,
       nudged: false,
       ready: false,
     }),
-    [],
+    [segments],
   );
 
   const wake = () => {
-    if (work.still >= physics.restFrames) clock.getDelta();
+    if (work.still >= world.restFrames) clock.getDelta();
     work.still = 0;
     invalidate();
   };
@@ -282,7 +331,7 @@ export default function Lanyard({
   }, [active]);
 
   const bodies = () =>
-    [fixed, ...links.map((l) => l.body), card, hand].map((r) => r.current);
+    [fixed, ...links.map((l) => l.body), card].map((r) => r.current);
 
   const handTarget = (clientX: number, clientY: number): [number, number] => {
     const rect = hero.getBoundingClientRect();
@@ -290,7 +339,7 @@ export default function Lanyard({
       clientX - rect.left,
       clientY - rect.top,
     ]);
-    return clampToFrustum(stage, [x, y], physics.frustumMargin);
+    return clampToFrustum(stage, [x, y], world.frustumMargin);
   };
 
   const release = (event?: PointerEvent) => {
@@ -298,18 +347,17 @@ export default function Lanyard({
     if (d === null) return;
     if (event && event.pointerId !== d.pointerId) return;
     drag.current = null;
-    if (d.joint.isValid()) world.removeImpulseJoint(d.joint, true);
     const c = card.current;
-    if (c !== null) {
-      const tap =
-        event?.type === 'pointerup' &&
-        isTap(d.press, {
-          x: event.clientX,
-          y: event.clientY,
-          time: performance.now(),
-        });
-      if (tap) c.setAngvel({ x: 0, y: physics.flipSpin, z: 0 }, true);
-      else c.setLinvel(limitSpeed(c.linvel(), physics.maxSpeed), true);
+    const tap =
+      event?.type === 'pointerup' &&
+      isTap(d.press, {
+        x: event.clientX,
+        y: event.clientY,
+        time: performance.now(),
+      });
+    if (c !== null && tap) {
+      work.facing += 2 * Math.PI;
+      c.setAngvel({ x: 0, y: world.flipSpin, z: 0 }, true);
     }
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
@@ -347,20 +395,15 @@ export default function Lanyard({
       hero.style.cursor = '';
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
-      const d = drag.current;
-      if (d !== null && d.joint.isValid()) {
-        world.removeImpulseJoint(d.joint, false);
-      }
       drag.current = null;
     },
-    [hero, world],
+    [hero],
   );
 
   const onPointerDown = (event: ThreeEvent<PointerEvent>) => {
     const native = event.nativeEvent;
     const c = card.current;
-    const h = hand.current;
-    if (native.button !== 0 || drag.current !== null || !c || !h) return;
+    if (native.button !== 0 || drag.current !== null || !c) return;
     event.stopPropagation();
     document.body.style.cursor = 'grabbing';
     document.body.style.userSelect = 'none';
@@ -371,28 +414,12 @@ export default function Lanyard({
       stage.card,
       clipTop,
     );
-    const grip = work.v.set(gx, gy, 0);
-    cardGroup.current.localToWorld(grip);
-    h.setTranslation({ x: grip.x, y: grip.y, z: 0 }, true);
-    const target = handTarget(native.clientX, native.clientY);
-    h.setNextKinematicTranslation({ x: target[0], y: target[1], z: 0 });
-    const joint = world.createImpulseJoint(
-      rapier.JointData.spring(
-        0,
-        physics.handStiffness,
-        physics.handDamping,
-        { x: 0, y: 0, z: 0 },
-        { x: gx, y: gy, z: 0 },
-      ),
-      h,
-      c,
-      true,
-    );
     for (const b of bodies()) b?.wakeUp();
+    hover.current = null;
     drag.current = {
-      joint,
       pointerId: native.pointerId,
-      target,
+      target: handTarget(native.clientX, native.clientY),
+      local: new THREE.Vector3(gx, gy, 0),
       press: { x: native.clientX, y: native.clientY, time: performance.now() },
     };
     try {
@@ -404,26 +431,97 @@ export default function Lanyard({
     wake();
   };
 
+  const onPointerMove = (event: ThreeEvent<PointerEvent>) => {
+    const native = event.nativeEvent;
+    if (drag.current !== null || native.pointerType !== 'mouse') return;
+    const last = hover.current;
+    hover.current = {
+      x: native.clientX,
+      y: native.clientY,
+      impulse: [0, 0, 0],
+      point: event.point.clone(),
+    };
+    if (last === null) return;
+    const [ix, iy] = hoverImpulse(
+      native.clientX - last.x,
+      native.clientY - last.y,
+      world.hover,
+    );
+    hover.current.impulse = [last.impulse[0] + ix, last.impulse[1] + iy, 0];
+    wake();
+  };
+
   useBeforePhysicsStep(() => {
     const c = card.current;
-    const h = hand.current;
-    if (!c || !h) return;
+    if (!c) return;
+    const dt = world.timeStep;
     const d = drag.current;
+    const pos = c.translation();
+    const rot = c.rotation();
     if (d !== null) {
-      h.setNextKinematicTranslation({ x: d.target[0], y: d.target[1], z: 0 });
       for (const b of bodies()) b?.wakeUp();
+      const point = work.p
+        .copy(d.local)
+        .applyQuaternion(work.q.set(rot.x, rot.y, rot.z, rot.w))
+        .add(work.v.set(pos.x, pos.y, pos.z));
+      const [ix, iy] = gripImpulse(
+        {
+          target: [d.target[0], d.target[1], 0],
+          point: [point.x, point.y, point.z],
+          centre: [pos.x, pos.y, pos.z],
+          linvel: toVec3(c.linvel()),
+          angvel: toVec3(c.angvel()),
+          mass: c.mass(),
+          dt,
+        },
+        world.grip,
+      );
+      c.applyImpulseAtPoint({ x: ix, y: iy, z: 0 }, point, true);
     }
+    const h = hover.current;
+    if (
+      d === null &&
+      h !== null &&
+      (h.impulse[0] !== 0 || h.impulse[1] !== 0)
+    ) {
+      c.applyImpulseAtPoint(
+        { x: h.impulse[0], y: h.impulse[1], z: 0 },
+        h.point,
+        true,
+      );
+      h.impulse = [0, 0, 0];
+    }
+    work.yaw = unwrapAngle(work.yaw, yawAngle(rot));
     if (!c.isSleeping()) {
       const ang = c.angvel();
-      const rot = c.rotation();
       c.setAngvel(
-        { x: ang.x, y: ang.y - rot.y * physics.facing, z: ang.z },
+        {
+          x: ang.x,
+          y: ang.y + twistRate(work.yaw - work.facing, ang.y, dt, world.twist),
+          z: ang.z,
+        },
         false,
+      );
+      const { linearDamping, angularDamping } = world.card;
+      const s = speed(c);
+      c.setLinearDamping(
+        d === null
+          ? freeDamping(linearDamping, s, world.settle)
+          : linearDamping,
+      );
+      c.setAngularDamping(
+        d === null
+          ? freeDamping(angularDamping, s, {
+              ...world.settle,
+              air: 0,
+              boost: 0,
+            })
+          : angularDamping,
       );
     }
     if (!work.nudged) {
       work.nudged = true;
-      c.setLinvel({ x: physics.nudge, y: 0, z: 0 }, true);
+      c.setLinvel({ x: world.nudge, y: 0, z: 0 }, true);
     }
   });
 
@@ -435,12 +533,12 @@ export default function Lanyard({
 
     const points = work.curve.points as THREE.Vector3[];
     points[0]!.set(ax, ay, 0);
-    for (let i = 0; i < ropeSegments - 1; i++) {
+    for (let i = 0; i < segments - 1; i++) {
       links[i]!.marker.current?.getWorldPosition(points[i + 1]!);
     }
-    group.localToWorld(points[ropeSegments]!.set(0, jointY, 0));
+    group.localToWorld(points[segments]!.set(0, jointY, 0));
     const curve = work.curve
-      .getPoints(ropeSegments * divisions)
+      .getPoints(segments * divisions)
       .map((p): Vec3 => [p.x, p.y, thickness / 2 + 0.004]);
     const { positions, uvs } = ribbon(curve, stage.bandWidth / 2, scene.u);
     const position = scene.band.attributes.position as THREE.BufferAttribute;
@@ -474,6 +572,12 @@ export default function Lanyard({
       el.dataset.angle = tiltDegrees(group.getWorldQuaternion(work.q)).toFixed(
         1,
       );
+      const screen = curve.map((p) => worldToScreen(stage, p));
+      el.dataset.strap = visibleArc(screen, 0).toFixed(1);
+      el.dataset.labelTop = arcAt(screen, scene.u, 0).toFixed(1);
+      el.dataset.labelBottom = arcAt(screen, scene.u, scene.labelEnd).toFixed(
+        1,
+      );
     }
 
     work.frames += 1;
@@ -483,9 +587,9 @@ export default function Lanyard({
     }
     const moving =
       drag.current !== null ||
-      all.some((b) => b!.isDynamic() && speed(b!) > physics.restSpeed);
+      all.some((b) => b!.isDynamic() && speed(b!) > world.restSpeed);
     work.still = moving ? 0 : work.still + 1;
-    if (work.still < physics.restFrames) state.invalidate();
+    if (work.still < world.restFrames) state.invalidate();
   });
 
   return (
@@ -497,50 +601,43 @@ export default function Lanyard({
         position={[ax, ay, 0]}
       />
       {links.map((link, i) => {
-        const [x, y] = layout.joints[i]!;
+        const [x, y] = layout.nodes[i + 1]!;
         return (
           <RigidBody
             key={i}
             ref={link.body}
-            {...segmentProps}
+            type="dynamic"
+            canSleep
+            colliders={false}
+            linearDamping={world.strap.linkDamping}
+            angularDamping={world.strap.linkDamping}
+            enabledTranslations={planar}
+            enabledRotations={[false, false, false]}
             position={[x, y, 0]}
           >
             <BallCollider
               args={[0.05]}
-              mass={physics.segmentMass}
+              mass={world.strap.linkMass}
               collisionGroups={noCollisions}
             />
             <group ref={link.marker} />
           </RigidBody>
         );
       })}
-      {links.map((link, i) => (
-        <RopeLink
-          key={i}
-          a={i === 0 ? fixed : links[i - 1]!.body}
-          b={link.body}
-          length={layout.segment}
-        />
-      ))}
-      <RigidBody
-        ref={hand}
-        type="kinematicPosition"
-        colliders={false}
-        position={[cx, cy, 0]}
-      />
       <RigidBody
         ref={card}
         type="dynamic"
         canSleep
         colliders={false}
-        linearDamping={physics.cardLinearDamping}
-        angularDamping={physics.cardAngularDamping}
-        enabledTranslations={[true, true, false]}
+        linearDamping={world.card.linearDamping}
+        angularDamping={world.card.angularDamping}
+        enabledTranslations={planar}
+        enabledRotations={[false, true, true]}
         position={[cx, cy, 0]}
       >
         <CuboidCollider
           args={[cw / 2, ch / 2, thickness / 2]}
-          mass={physics.cardMass}
+          mass={world.card.mass}
           collisionGroups={noCollisions}
         />
         <group ref={cardGroup}>
@@ -602,13 +699,29 @@ export default function Lanyard({
           <mesh
             geometry={scene.target}
             onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
             onPointerOver={() => setHovered(true)}
-            onPointerOut={() => setHovered(false)}
+            onPointerOut={() => {
+              hover.current = null;
+              setHovered(false);
+            }}
           >
             <meshBasicMaterial visible={false} side={THREE.DoubleSide} />
           </mesh>
         </group>
       </RigidBody>
+      {springs.map((spring, i) => (
+        <SpringLink
+          key={i}
+          a={node(spring.a)}
+          b={node(spring.b)}
+          anchorA={nodeAnchor(spring.a)}
+          anchorB={nodeAnchor(spring.b)}
+          rest={spring.rest}
+          stiffness={spring.stiffness}
+          damping={spring.damping}
+        />
+      ))}
       <mesh geometry={scene.band} frustumCulled={false}>
         <meshBasicMaterial map={scene.strap} side={THREE.DoubleSide} />
       </mesh>
