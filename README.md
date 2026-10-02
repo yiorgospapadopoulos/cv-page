@@ -97,4 +97,11 @@ The server-rendered page always contains a plain HTML and CSS badge (the placeho
 
 ## Deployment
 
-The build output is plain static files in `dist/`, so any static host works (GitHub Pages, Netlify, Cloudflare Pages, an S3 bucket behind a CDN, an nginx folder). Two things to check on the host: it should compress text and `.wasm` files (gzip or brotli) and serve `.wasm` as `application/wasm`. Before publishing under a real domain, set `site` in `astro.config.mjs` so the social preview image gets an absolute URL. Nothing has been deployed yet, and the domain and hosting are still undecided.
+The site is hosted on Cloudflare Pages at https://yiorgospapadopoulos.dev (domain registered with Cloudflare Registrar). The build output is plain static files in `dist/`; Cloudflare compresses text and `.wasm` files and serves `.wasm` as `application/wasm`. The site URL lives in `src/lib/site.ts` (`siteUrl`) and feeds `site` in `astro.config.mjs`, so the canonical link and social preview image are absolute.
+
+One-time setup on a new machine:
+
+1. `npx wrangler login` opens the browser to authorize your Cloudflare account.
+2. `npm run deploy:setup` creates the Pages project `yiorgospapadopoulos` (only needed once per account).
+
+Publishing a change: `npm run deploy`. It runs every quality gate (`npm run check`, which also builds) and then uploads `dist/` to the production branch. `public/_headers` sets security headers and long caching for the hashed files in `/_astro/`.
