@@ -8,7 +8,7 @@ import {
 } from 'react';
 import type { Badge as BadgeContent } from '../../content/types';
 import { supportsWebGL } from '../../lib/badge/capability';
-import { whenIdle } from '../../lib/badge/deferral';
+import { whenIdle } from '../../lib/badge/idle';
 import { readBadgeEnv, wantsStaticBadge } from '../../lib/badge/loadPolicy';
 import { computeStage, type Rect, type Stage } from '../../lib/badge/stage';
 import type { BadgeAssets } from './Lanyard';
