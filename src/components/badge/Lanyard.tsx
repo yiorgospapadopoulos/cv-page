@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import * as THREE from 'three';
 import { chainLayout, chainSprings, segmentCount } from '../../lib/badge/chain';
 import {
+  faceDegrees,
   grabAnchor,
   grabPadding,
   gripImpulse,
@@ -20,9 +21,14 @@ import {
   tiltDegrees,
 } from '../../lib/badge/grab';
 import {
+  cardInertia,
   freeDamping,
+  freedom,
+  pinchTorque,
+  pitchAngle,
+  swivelImpulse,
   toWorld,
-  twistRate,
+  twistTorque,
   yawAngle,
 } from '../../lib/badge/physics';
 import { ribbon, ribbonIndices, strapCoordinates } from '../../lib/badge/rope';
@@ -54,7 +60,8 @@ interface Props {
 
 interface Drag {
   pointerId: number;
-  target: [number, number];
+  depth: number;
+  target: Vec3;
   local: THREE.Vector3;
 }
 
@@ -71,7 +78,6 @@ const world = toWorld();
 const thickness = 0.035;
 const divisions = 6;
 const noCollisions = interactionGroups(0, []);
-const planar: [boolean, boolean, boolean] = [true, true, false];
 
 function SpringLink({
   a,
@@ -209,6 +215,10 @@ export default function Lanyard({
   const nodeAnchor = (i: number): Vec3 =>
     i === segments ? [0, jointY, 0] : [0, 0, 0];
   const [ax, ay] = stage.anchor;
+  const inertia = useMemo(
+    () => cardInertia(world.card.mass, [cw, ch, thickness], world.skew),
+    [cw, ch],
+  );
   const [cx, clipY] = layout.nodes[segments]!;
   const cy = clipY - jointY;
 
@@ -306,6 +316,7 @@ export default function Lanyard({
       ),
       v: new THREE.Vector3(),
       p: new THREE.Vector3(),
+      axis: new THREE.Vector3(),
       q: new THREE.Quaternion(),
       frames: 0,
       still: 0,
@@ -328,13 +339,22 @@ export default function Lanyard({
   const bodies = () =>
     [fixed, ...links.map((l) => l.body), card].map((r) => r.current);
 
-  const handTarget = (clientX: number, clientY: number): [number, number] => {
+  const handTarget = (clientX: number, clientY: number, z: number): Vec3 => {
     const rect = hero.getBoundingClientRect();
-    const [x, y] = screenToPlane(stage, [
-      clientX - rect.left,
-      clientY - rect.top,
-    ]);
-    return clampToFrustum(stage, [x, y], world.frustumMargin);
+    const [x, y] = screenToPlane(
+      stage,
+      [clientX - rect.left, clientY - rect.top],
+      z,
+    );
+    return [...clampToFrustum(stage, [x, y], world.frustumMargin, z), z];
+  };
+
+  // The side of the card facing the camera, so a grab holds the visible face.
+  const faceDepth = () => {
+    const n = work.axis
+      .set(0, 0, 1)
+      .applyQuaternion(cardGroup.current.getWorldQuaternion(work.q));
+    return n.z >= 0 ? world.grip.depth : -world.grip.depth;
   };
 
   const release = (event?: PointerEvent) => {
@@ -353,7 +373,7 @@ export default function Lanyard({
     const onMove = (event: PointerEvent) => {
       const d = drag.current;
       if (d === null || event.pointerId !== d.pointerId) return;
-      d.target = handTarget(event.clientX, event.clientY);
+      d.target = handTarget(event.clientX, event.clientY, d.depth);
       wake();
     };
     const onEnd = (event: PointerEvent) => release(event);
@@ -392,17 +412,20 @@ export default function Lanyard({
     document.body.style.userSelect = 'none';
     window.getSelection()?.removeAllRanges();
     const local = cardGroup.current.worldToLocal(work.v.copy(event.point));
-    const [gx, gy] = grabAnchor(
+    const [gx, gy, gz] = grabAnchor(
       [local.x, local.y, local.z],
       stage.card,
       clipTop,
+      faceDepth(),
     );
+    const grabbed = cardGroup.current.localToWorld(work.p.set(gx, gy, gz));
     for (const b of bodies()) b?.wakeUp();
     hover.current = null;
     drag.current = {
       pointerId: native.pointerId,
-      target: handTarget(native.clientX, native.clientY),
-      local: new THREE.Vector3(gx, gy, 0),
+      depth: grabbed.z,
+      target: handTarget(native.clientX, native.clientY, grabbed.z),
+      local: new THREE.Vector3(gx, gy, gz),
     };
     try {
       hero.setPointerCapture(native.pointerId);
@@ -417,11 +440,14 @@ export default function Lanyard({
     const native = event.nativeEvent;
     if (drag.current !== null || native.pointerType !== 'mouse') return;
     const last = hover.current;
+    const group = cardGroup.current;
+    const local = group.worldToLocal(work.v.copy(event.point));
+    local.z = faceDepth();
     hover.current = {
       x: native.clientX,
       y: native.clientY,
       impulse: [0, 0, 0],
-      point: event.point.clone(),
+      point: group.localToWorld(local).clone(),
     };
     if (last === null) return;
     const [ix, iy] = hoverImpulse(
@@ -446,9 +472,9 @@ export default function Lanyard({
         .copy(d.local)
         .applyQuaternion(work.q.set(rot.x, rot.y, rot.z, rot.w))
         .add(work.v.set(pos.x, pos.y, pos.z));
-      const [ix, iy] = gripImpulse(
+      const [ix, iy, iz] = gripImpulse(
         {
-          target: [d.target[0], d.target[1], 0],
+          target: d.target,
           point: [point.x, point.y, point.z],
           centre: [pos.x, pos.y, pos.z],
           linvel: toVec3(c.linvel()),
@@ -458,7 +484,7 @@ export default function Lanyard({
         },
         world.grip,
       );
-      c.applyImpulseAtPoint({ x: ix, y: iy, z: 0 }, point, true);
+      c.applyImpulseAtPoint({ x: ix, y: iy, z: iz }, point, true);
     }
     const h = hover.current;
     if (
@@ -475,14 +501,25 @@ export default function Lanyard({
     }
     if (!c.isSleeping()) {
       const ang = c.angvel();
-      c.setAngvel(
-        {
-          x: ang.x,
-          y: ang.y + twistRate(yawAngle(rot), ang.y, dt, world.twist),
-          z: ang.z,
-        },
-        false,
-      );
+      const twist = twistTorque(yawAngle(rot), ang.y, world.twist) * dt;
+      c.applyTorqueImpulse({ x: 0, y: twist, z: 0 }, false);
+      const q = work.q.set(rot.x, rot.y, rot.z, rot.w);
+      if (d !== null) {
+        const axis = work.axis.set(1, 0, 0).applyQuaternion(q);
+        const rate = ang.x * axis.x + ang.y * axis.y + ang.z * axis.z;
+        const pinch = pinchTorque(pitchAngle(rot), rate, world.pinch);
+        c.applyTorqueImpulse(axis.multiplyScalar(pinch * dt), false);
+      }
+      for (const [x, y, damping] of [
+        [0, 1, world.swivel.twist],
+        [1, 0, world.swivel.tilt],
+      ] as const) {
+        const axis = work.axis.set(x, y, 0).applyQuaternion(q);
+        const rate = ang.x * axis.x + ang.y * axis.y + ang.z * axis.z;
+        const impulse = swivelImpulse(rate, world.swivel.inertia, damping, dt);
+        axis.multiplyScalar(impulse);
+        c.applyTorqueImpulse(axis, false);
+      }
       const { linearDamping, angularDamping } = world.card;
       const s = speed(c);
       c.setLinearDamping(
@@ -520,7 +557,7 @@ export default function Lanyard({
     group.localToWorld(points[segments]!.set(0, jointY, 0));
     const curve = work.curve
       .getPoints(segments * divisions)
-      .map((p): Vec3 => [p.x, p.y, thickness / 2 + 0.004]);
+      .map((p): Vec3 => [p.x, p.y, p.z + thickness / 2 + 0.004]);
     const { positions, uvs } = ribbon(curve, stage.bandWidth / 2, scene.u);
     const position = scene.band.attributes.position as THREE.BufferAttribute;
     const uv = scene.band.attributes.uv as THREE.BufferAttribute;
@@ -550,9 +587,11 @@ export default function Lanyard({
       const [sx, sy] = worldToScreen(stage, [centre.x, centre.y, centre.z]);
       el.dataset.x = sx.toFixed(1);
       el.dataset.y = sy.toFixed(1);
-      el.dataset.angle = tiltDegrees(group.getWorldQuaternion(work.q)).toFixed(
-        1,
-      );
+      const q = group.getWorldQuaternion(work.q);
+      el.dataset.angle = tiltDegrees(q).toFixed(1);
+      const face = faceDegrees(q);
+      el.dataset.yaw = face.yaw.toFixed(1);
+      el.dataset.pitch = face.pitch.toFixed(1);
       const screen = curve.map((p) => worldToScreen(stage, p));
       el.dataset.strap = visibleArc(screen, 0).toFixed(1);
       el.dataset.labelTop = arcAt(screen, scene.u, 0).toFixed(1);
@@ -592,8 +631,8 @@ export default function Lanyard({
             colliders={false}
             linearDamping={world.strap.linkDamping}
             angularDamping={world.strap.linkDamping}
-            enabledTranslations={planar}
-            enabledRotations={[false, false, false]}
+            enabledTranslations={freedom.link.translations}
+            enabledRotations={freedom.link.rotations}
             position={[x, y, 0]}
           >
             <BallCollider
@@ -612,13 +651,13 @@ export default function Lanyard({
         colliders={false}
         linearDamping={world.card.linearDamping}
         angularDamping={world.card.angularDamping}
-        enabledTranslations={planar}
-        enabledRotations={[false, true, true]}
+        enabledTranslations={freedom.card.translations}
+        enabledRotations={freedom.card.rotations}
         position={[cx, cy, 0]}
       >
         <CuboidCollider
           args={[cw / 2, ch / 2, thickness / 2]}
-          mass={world.card.mass}
+          massProperties={inertia}
           collisionGroups={noCollisions}
         />
         <group ref={cardGroup}>

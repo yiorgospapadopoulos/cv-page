@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  faceDegrees,
   grabAnchor,
   gripImpulse,
   hoverImpulse,
@@ -10,13 +11,18 @@ import {
 const card = { width: 1.6, height: 2.2 };
 
 describe('grabAnchor', () => {
-  it('keeps a point on the card and drops depth', () => {
-    expect(grabAnchor([0.3, -0.4, 0.02], card, 0.2)).toEqual([0.3, -0.4, 0]);
+  it('keeps a point on the card and holds it at the given depth', () => {
+    expect(grabAnchor([0.3, -0.4, 0.02], card, 0.2, 0.05)).toEqual([
+      0.3, -0.4, 0.05,
+    ]);
+    expect(grabAnchor([0.3, -0.4, 0], card, 0.2, -0.05)).toEqual([
+      0.3, -0.4, -0.05,
+    ]);
   });
 
   it('pulls a point in the padding onto the nearest card edge', () => {
-    expect(grabAnchor([1.2, -1.5, 0], card, 0.2)).toEqual([0.8, -1.1, 0]);
-    expect(grabAnchor([-1.2, 2, 0], card, 0.2)).toEqual([-0.8, 1.3, 0]);
+    expect(grabAnchor([1.2, -1.5, 0], card, 0.2, 0)).toEqual([0.8, -1.1, 0]);
+    expect(grabAnchor([-1.2, 2, 0], card, 0.2, 0)).toEqual([-0.8, 1.3, 0]);
   });
 });
 
@@ -37,6 +43,35 @@ describe('tiltDegrees', () => {
     expect(
       tiltDegrees({ x: 0, y: Math.sin(half), z: 0, w: Math.cos(half) }),
     ).toBeCloseTo(0);
+  });
+});
+
+describe('faceDegrees', () => {
+  const around = (axis: 'x' | 'y' | 'z', deg: number) => {
+    const half = (deg * Math.PI) / 360;
+    return { x: 0, y: 0, z: 0, [axis]: Math.sin(half), w: Math.cos(half) };
+  };
+
+  it('faces forward with no rotation', () => {
+    const { yaw, pitch } = faceDegrees({ x: 0, y: 0, z: 0, w: 1 });
+    expect(yaw).toBeCloseTo(0);
+    expect(pitch).toBeCloseTo(0);
+  });
+
+  it('reads the twist about the vertical axis', () => {
+    expect(faceDegrees(around('y', 35)).yaw).toBeCloseTo(35);
+    expect(faceDegrees(around('y', 35)).pitch).toBeCloseTo(0);
+  });
+
+  it('reads the tilt toward or away from the viewer', () => {
+    expect(faceDegrees(around('x', -20)).pitch).toBeCloseTo(-20);
+    expect(faceDegrees(around('x', -20)).yaw).toBeCloseTo(0);
+  });
+
+  it('ignores the in-plane swing', () => {
+    const { yaw, pitch } = faceDegrees(around('z', 40));
+    expect(yaw).toBeCloseTo(0);
+    expect(pitch).toBeCloseTo(0);
   });
 });
 
@@ -114,17 +149,37 @@ describe('gripImpulse', () => {
     expect(x / y).toBeCloseTo(0.75);
   });
 
-  it('stays in the card plane', () => {
-    const impulse = gripImpulse(
+  it('pulls the grabbed point back to the drag plane in depth', () => {
+    const [x, y, z] = gripImpulse(
+      { ...still, point: [0, 0, 0.2], target: [0, 0, 0] },
+      grip,
+    );
+    expect(x).toBe(0);
+    expect(y).toBe(0);
+    expect(z).toBeLessThan(0);
+  });
+
+  it('damps motion in depth, including spin that swings the point', () => {
+    const [, , z] = gripImpulse(
       {
         ...still,
-        point: [0, 0, 0.2],
-        target: [0, 0, -1],
-        linvel: [0, 0, 3],
+        point: [0.5, 0, 0],
+        target: [0.5, 0, 0],
+        angvel: [0, -2, 0],
       },
       grip,
     );
-    expect(impulse).toEqual([0, 0, 0]);
+    expect(z).toBeLessThan(0);
+  });
+
+  it('caps the force in three dimensions', () => {
+    const [x, y, z] = gripImpulse(
+      { ...still, point: [0, 0, 0], target: [0, 30, 40] },
+      grip,
+    );
+    expect(x).toBe(0);
+    expect(Math.hypot(x, y, z)).toBeCloseTo((110 * 0.72) / 60);
+    expect(y / z).toBeCloseTo(0.75);
   });
 });
 
