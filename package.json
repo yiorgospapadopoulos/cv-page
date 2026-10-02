@@ -53,6 +53,6 @@
     "audit": "npm audit --audit-level=high",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run audit && npm run test:coverage && npm run build",
     "deploy:setup": "wrangler pages project create yiorgospapadopoulos --production-branch=main",
-    "deploy": "npm run check && wrangler pages deploy dist --project-name=yiorgospapadopoulos --branch=main --commit-dirty=true"
+    "deploy": "npm run check && npm run test:e2e && wrangler pages deploy dist --project-name=yiorgospapadopoulos --branch=main"
   }
 }

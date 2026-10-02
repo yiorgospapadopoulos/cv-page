@@ -106,9 +106,10 @@ The Rapier engine is WebAssembly; a small build plugin in `astro.config.mjs` ser
 
 The site is hosted on Cloudflare Pages at https://yiorgospapadopoulos.dev (domain registered with Cloudflare Registrar). The build output is plain static files in `dist/`; Cloudflare compresses text and `.wasm` files and serves `.wasm` as `application/wasm`. The site URL lives in `src/lib/site.ts` (`siteUrl`) and feeds `site` in `astro.config.mjs`, so the canonical link and social preview image are absolute.
 
-One-time setup on a new machine:
+One-time setup:
 
 1. `npx wrangler login` opens the browser to authorize your Cloudflare account.
 2. `npm run deploy:setup` creates the Pages project `yiorgospapadopoulos` (only needed once per account).
+3. Attach the custom domains, once, in the Cloudflare dashboard: Workers and Pages, project `yiorgospapadopoulos`, Custom domains, then add `yiorgospapadopoulos.dev` and `www.yiorgospapadopoulos.dev`. DNS records and HTTPS are set up automatically because the domain is on Cloudflare.
 
-Publishing a change: `npm run deploy`. It runs every quality gate (`npm run check`, which also builds) and then uploads `dist/` to the production branch. `public/_headers` sets security headers and long caching for the hashed files in `/_astro/`.
+Publishing a change: `npm run deploy`. It runs every quality gate (`npm run check`, which also builds), then the browser tests (`npm run test:e2e`), and only then uploads `dist/` to the production branch. Wrangler warns when the working tree has uncommitted changes, so commit first. `public/_headers` sets security headers and long caching for the hashed files in `/_astro/`.
