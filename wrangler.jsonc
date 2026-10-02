@@ -3,4 +3,6 @@
   "name": "yiorgospapadopoulos",
   "compatibility_date": "2026-10-01",
   "assets": { "directory": "./dist" },
+  "routes": [{ "pattern": "yiorgospapadopoulos.dev", "custom_domain": true }],
+  "workers_dev": true,
 }
