@@ -25,6 +25,8 @@ interface Pose {
   x: number;
   y: number;
   angle: number;
+  yaw: number;
+  pitch: number;
 }
 
 async function pose(page: Page): Promise<Pose> {
@@ -35,6 +37,8 @@ async function pose(page: Page): Promise<Pose> {
       x: Number(el.dataset.x),
       y: Number(el.dataset.y),
       angle: Number(el.dataset.angle),
+      yaw: Number(el.dataset.yaw),
+      pitch: Number(el.dataset.pitch),
     }));
   return { ...local, x: local.x + hero!.x, y: local.y + hero!.y };
 }
@@ -60,6 +64,8 @@ interface Sample {
   t: number;
   x: number;
   y: number;
+  yaw: number;
+  pitch: number;
 }
 
 // Records the projected card centre every frame, in hero coordinates.
@@ -71,7 +77,13 @@ function track(page: Page, ms: number): Promise<Sample[]> {
         const start = performance.now();
         const step = () => {
           const t = performance.now() - start;
-          samples.push({ t, x: Number(el.dataset.x), y: Number(el.dataset.y) });
+          samples.push({
+            t,
+            x: Number(el.dataset.x),
+            y: Number(el.dataset.y),
+            yaw: Number(el.dataset.yaw),
+            pitch: Number(el.dataset.pitch),
+          });
           if (t < duration) requestAnimationFrame(step);
           else resolve(samples);
         };
@@ -225,6 +237,63 @@ test.describe('3d badge', () => {
     const settled = await atRest(page);
     expect(Math.hypot(settled.x - rest.x, settled.y - rest.y)).toBeLessThan(20);
     expect(Math.abs(settled.angle)).toBeLessThan(6);
+    expect(Math.abs(settled.yaw)).toBeLessThan(3);
+    expect(Math.abs(settled.pitch)).toBeLessThan(3);
+  });
+
+  test('twists and tilts in depth after a high drop, then faces forward', async ({
+    page,
+    browserName,
+    isMobile,
+  }) => {
+    chromiumDesktop(browserName, isMobile);
+    const errors = collectErrors(page);
+    await page.goto('/');
+    await waitForBadge(page);
+    const rest = await atRest(page);
+    expect(Math.abs(rest.yaw)).toBeLessThan(3);
+    expect(Math.abs(rest.pitch)).toBeLessThan(3);
+
+    await page.mouse.move(rest.x - 40, rest.y - 40);
+    await page.mouse.down();
+    await moveTo(page, rest.x - 30, rest.y - 340, 15);
+    const recording = track(page, 7000);
+    await page.mouse.up();
+    const samples = await recording;
+
+    const turn = (s: Sample) => Math.max(Math.abs(s.yaw), Math.abs(s.pitch));
+    const peak = samples.reduce(
+      (i, s, j) => (turn(s) > turn(samples[i]!) ? j : i),
+      0,
+    );
+    expect(turn(samples[peak]!)).toBeGreaterThan(8);
+    const back = samples.findIndex((s, i) => i > peak && turn(s) < 3);
+    expect(back).toBeGreaterThan(peak);
+    const last = samples.at(-1)!;
+    expect(Math.abs(last.yaw)).toBeLessThan(3);
+    expect(Math.abs(last.pitch)).toBeLessThan(3);
+    expect(errors).toEqual([]);
+  });
+
+  test('stays facing forward after a quick tap', async ({
+    page,
+    browserName,
+    isMobile,
+  }) => {
+    chromiumDesktop(browserName, isMobile);
+    await page.goto('/');
+    await waitForBadge(page);
+    const rest = await atRest(page);
+
+    await page.mouse.move(rest.x, rest.y);
+    const recording = track(page, 2000);
+    await page.mouse.down();
+    await page.mouse.up();
+    const samples = await recording;
+    for (const s of samples) {
+      expect(Math.abs(s.yaw)).toBeLessThan(3);
+      expect(Math.abs(s.pitch)).toBeLessThan(3);
+    }
   });
 
   test('drops back gently after being pulled straight down', async ({
