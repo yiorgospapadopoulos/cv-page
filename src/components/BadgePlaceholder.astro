@@ -65,6 +65,14 @@ const line = splitAffiliation(badge.line);
     transform-origin: 50% 0;
     scale: 1;
     animation: sway 7s ease-in-out infinite alternate;
+    transition: opacity 300ms ease;
+  }
+
+  @media (min-width: 860px) {
+    :global(html[data-badge-load='pending']) .badge {
+      opacity: 0;
+      visibility: hidden;
+    }
   }
 
   .badge-slot[data-badge-3d='ready'] .badge {

@@ -3,6 +3,7 @@ import fraunces from '@fontsource-variable/fraunces/files/fraunces-latin-opsz-no
 import jetbrainsMono from '@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url';
 import '../styles/tokens.css';
 import '../styles/global.css';
+import { badgeHeadScript } from '../lib/badge/entrance';
 import { fontFaceCss } from '../lib/fonts';
 import { skipLink } from '../lib/site';
 
@@ -67,6 +68,7 @@ const pageUrl =
         }, 3000);
       }
     </script>
+    <script is:inline set:html={badgeHeadScript} />
   </head>
   <body>
     <a class="skip-link" href={`#${skipLink.target}`}>

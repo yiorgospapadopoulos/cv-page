@@ -8,6 +8,7 @@ import {
 } from 'react';
 import type { Badge as BadgeContent } from '../../content/types';
 import { supportsWebGL } from '../../lib/badge/capability';
+import { signalBadge } from '../../lib/badge/entrance';
 import { whenIdle } from '../../lib/badge/idle';
 import {
   readBadgeEnv,
@@ -123,7 +124,9 @@ export default function Badge({ badge, prompt }: Props) {
     ];
     const update = () => {
       const env = readBadgeEnv(window, () => supportsWebGL(document));
-      setEnabled(!wantsStaticBadge(env));
+      const still = wantsStaticBadge(env);
+      if (still) signalBadge(document.documentElement, 'static');
+      setEnabled(!still);
       setTilt(wantsScrollTilt(env));
     };
     update();
@@ -210,12 +213,18 @@ export default function Badge({ badge, prompt }: Props) {
     };
   }, [hasLayout]);
 
+  useEffect(() => {
+    if (failed) signalBadge(document.documentElement, 'static');
+  }, [failed]);
+
   const shown = enabled && !failed && ready;
   useEffect(() => {
     const slot = root.current?.closest<HTMLElement>('#badge-slot');
     if (!slot) return;
-    if (shown) slot.setAttribute('data-badge-3d', 'ready');
-    else slot.removeAttribute('data-badge-3d');
+    if (shown) {
+      slot.setAttribute('data-badge-3d', 'ready');
+      signalBadge(document.documentElement, 'ready');
+    } else slot.removeAttribute('data-badge-3d');
   }, [shown]);
 
   useEffect(() => {
