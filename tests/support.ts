@@ -9,10 +9,8 @@ export async function hasWebGL(page: Page): Promise<boolean> {
 
 export const noWebGL = 'WebGL is unavailable in this headless engine';
 
-export async function isTouchFirst(page: Page): Promise<boolean> {
-  return page.evaluate(
-    () => matchMedia('(hover: none) and (pointer: coarse)').matches,
-  );
+export async function isNarrow(page: Page): Promise<boolean> {
+  return page.evaluate(() => !matchMedia('(min-width: 860px)').matches);
 }
 
-export const staticOnTouch = 'Touch devices keep the static badge';
+export const staticWhenNarrow = 'Narrow viewports keep the phone card';

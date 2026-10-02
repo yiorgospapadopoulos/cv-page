@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { hasWebGL, isTouchFirst, noWebGL, staticOnTouch } from './support';
+import { hasWebGL, isNarrow, noWebGL, staticWhenNarrow } from './support';
 
 const sceneChunk = /\/_astro\/(Scene|rapier)[.-]/;
 
@@ -47,7 +47,7 @@ test.describe('connection-aware badge', () => {
     page,
   }) => {
     await page.goto('/');
-    test.skip(await isTouchFirst(page), staticOnTouch);
+    test.skip(await isNarrow(page), staticWhenNarrow);
     test.skip(!(await hasWebGL(page)), noWebGL);
     await page.waitForRequest(sceneChunk, { timeout: 20_000 });
   });
@@ -62,7 +62,7 @@ test.describe('connection-aware badge', () => {
       }
     });
     await page.goto('/');
-    test.skip(await isTouchFirst(page), staticOnTouch);
+    test.skip(await isNarrow(page), staticWhenNarrow);
     test.skip(!(await hasWebGL(page)), noWebGL);
     const wasm = await page.waitForResponse(/\.wasm$/, { timeout: 25_000 });
     expect(wasm.headers()['content-type']).toBe('application/wasm');
@@ -76,28 +76,73 @@ test.describe('connection-aware badge', () => {
   });
 });
 
-test.describe('touch devices', () => {
+async function expectNoScene(page: Page, requests: string[], wasm: string[]) {
+  await page.waitForLoadState('networkidle');
+  await page.evaluate(() => window.scrollTo(0, 400));
+  await page.waitForTimeout(4000);
+  expect(requests).toEqual([]);
+  expect(wasm).toEqual([]);
+  await expect(page.locator('#badge-slot canvas')).toHaveCount(0);
+  await expect(page.locator('#badge-slot')).not.toHaveAttribute(
+    'data-badge-3d',
+  );
+}
+
+function watchScene(page: Page) {
+  const requests = sceneRequests(page);
+  const wasm: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().endsWith('.wasm')) wasm.push(request.url());
+  });
+  return { requests, wasm };
+}
+
+test.describe('narrow viewports', () => {
   test('never load the 3d scene or the physics engine', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
-    const requests = sceneRequests(page);
-    const wasm: string[] = [];
-    page.on('request', (request) => {
-      if (request.url().endsWith('.wasm')) wasm.push(request.url());
-    });
+    const { requests, wasm } = watchScene(page);
     await page.goto('/');
-    test.skip(!(await isTouchFirst(page)), 'Only touch-first devices');
-    await page.waitForLoadState('networkidle');
-    await page.evaluate(() => window.scrollTo(0, 400));
-    await page.waitForTimeout(4000);
-
-    expect(requests).toEqual([]);
-    expect(wasm).toEqual([]);
-    await expect(page.locator('#badge-slot canvas')).toHaveCount(0);
-    await expect(page.locator('#badge-slot')).not.toHaveAttribute(
-      'data-badge-3d',
-    );
+    test.skip(!(await isNarrow(page)), 'Only narrow viewports');
+    await expectNoScene(page, requests, wasm);
     expect(errors).toEqual([]);
+  });
+
+  test.describe('on a narrow desktop window', () => {
+    test.use({ viewport: { width: 600, height: 900 } });
+
+    test('never load the 3d scene or the physics engine', async ({
+      page,
+      browserName,
+      isMobile,
+    }) => {
+      test.skip(browserName !== 'chromium' || isMobile, 'Desktop Chromium');
+      const { requests, wasm } = watchScene(page);
+      await page.goto('/');
+      await expectNoScene(page, requests, wasm);
+    });
+
+    test('load the scene only after widening past the breakpoint', async ({
+      page,
+      browserName,
+      isMobile,
+    }) => {
+      test.skip(browserName !== 'chromium' || isMobile, 'Desktop Chromium');
+      const { requests, wasm } = watchScene(page);
+      await page.goto('/');
+      test.skip(!(await hasWebGL(page)), noWebGL);
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(2000);
+      expect(requests).toEqual([]);
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.waitForRequest(sceneChunk, { timeout: 20_000 });
+      await expect(page.locator('#badge-slot')).toHaveAttribute(
+        'data-badge-3d',
+        'ready',
+        { timeout: 20_000 },
+      );
+      expect(wasm.length).toBeGreaterThan(0);
+    });
   });
 });
 

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { profile } from '../src/content/profile';
 import { grabPadding } from '../src/lib/badge/grab';
-import { hasWebGL, isTouchFirst } from './support';
+import { hasWebGL, isNarrow } from './support';
 
 const { hero, about } = profile;
 
@@ -172,7 +172,7 @@ test.describe('badge placeholder', () => {
   test('sways when the 3d badge is unavailable', async ({ page }) => {
     await page.addInitScript(disableWebGL);
     await page.goto('/');
-    test.skip(await isTouchFirst(page), 'Touch devices tilt with scroll');
+    test.skip(await isNarrow(page), 'Narrow viewports tilt with scroll');
     await expect(page.locator('[data-badge]')).toBeVisible();
     const running = await page
       .locator('[data-badge]')
@@ -218,7 +218,7 @@ for (const motion of ['no-preference', 'reduce'] as const) {
       await page.goto('/');
       const threeD =
         motion === 'no-preference' &&
-        !(await isTouchFirst(page)) &&
+        !(await isNarrow(page)) &&
         (await hasWebGL(page));
       if (threeD) {
         await expect(page.locator('#badge-slot')).toHaveAttribute(
@@ -264,7 +264,7 @@ for (const motion of ['no-preference', 'reduce'] as const) {
           }));
         expect(label.bottom).toBeGreaterThan(0);
         expect(label.top).toBeLessThanOrEqual(label.visible);
-      } else if (await isTouchFirst(page)) {
+      } else if (await isNarrow(page)) {
         const [holder, card] = await Promise.all([
           box(page, '#badge-slot [data-badge]'),
           box(page, '#badge-slot .card'),

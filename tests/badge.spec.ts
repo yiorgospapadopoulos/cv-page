@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { profile } from '../src/content/profile';
-import { hasWebGL, isTouchFirst, noWebGL, staticOnTouch } from './support';
+import { hasWebGL, isNarrow, noWebGL, staticWhenNarrow } from './support';
 
 function collectErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -12,7 +12,7 @@ function collectErrors(page: Page): string[] {
 }
 
 async function waitForBadge(page: Page) {
-  test.skip(await isTouchFirst(page), staticOnTouch);
+  test.skip(await isNarrow(page), staticWhenNarrow);
   test.skip(!(await hasWebGL(page)), noWebGL);
   await expect(page.locator('#badge-slot')).toHaveAttribute(
     'data-badge-3d',
@@ -445,10 +445,14 @@ async function swipeUp(page: Page, x: number, y: number, distance = 220) {
   });
 }
 
-test.describe('static badge on touch devices', () => {
-  test.beforeEach(async ({ page }) => {
+function phoneCardSuite(onlyDesktopChromium: boolean) {
+  test.beforeEach(async ({ page, browserName, isMobile }) => {
+    test.skip(
+      onlyDesktopChromium && (browserName !== 'chromium' || isMobile),
+      'Desktop Chromium',
+    );
     await page.goto('/');
-    test.skip(!(await isTouchFirst(page)), 'Only touch-first devices');
+    test.skip(!(await isNarrow(page)), 'Only narrow viewports');
   });
 
   test('shows the card and never creates a canvas', async ({ page }) => {
@@ -460,7 +464,11 @@ test.describe('static badge on touch devices', () => {
     expect(errors).toEqual([]);
   });
 
-  test('lets a swipe on the card scroll the page', async ({ page }) => {
+  test('lets a swipe on the card scroll the page', async ({
+    page,
+    hasTouch,
+  }) => {
+    test.skip(!hasTouch, 'Needs a touch screen');
     const card = await page.locator('#badge-slot .card').boundingBox();
     await swipeUp(
       page,
@@ -543,6 +551,113 @@ test.describe('static badge on touch devices', () => {
       await page.waitForTimeout(500);
       expect(await page.evaluate(() => window.scrollY)).toBe(300);
       expect(await tiltOf(page)).toBeCloseTo(7, 1);
+    });
+  });
+}
+
+test.describe('phone card on a touch phone', () => {
+  phoneCardSuite(false);
+});
+
+test.describe('phone card on a narrow desktop window', () => {
+  test.use({ viewport: { width: 600, height: 900 } });
+  phoneCardSuite(true);
+
+  test('has the original card style and no holder', async ({
+    page,
+    browserName,
+    isMobile,
+  }) => {
+    test.skip(browserName !== 'chromium' || isMobile, 'Desktop Chromium');
+    await page.goto('/');
+    const style = await page.evaluate(() => {
+      const badge = document.querySelector<HTMLElement>('[data-badge]')!;
+      const card = badge.querySelector<HTMLElement>('.card')!;
+      const b = getComputedStyle(badge);
+      const c = getComputedStyle(card);
+      return {
+        holderBorder: b.borderTopWidth,
+        holderFill: b.backgroundColor,
+        holderShadow: b.boxShadow,
+        holderPseudo: [
+          getComputedStyle(badge, '::before').content,
+          getComputedStyle(badge, '::after').content,
+        ],
+        radius: parseFloat(c.borderTopLeftRadius) / card.offsetWidth,
+        border: c.borderTopWidth,
+        fill: c.backgroundColor,
+        shadow: c.boxShadow,
+      };
+    });
+    expect(style.holderBorder).toBe('0px');
+    expect(style.holderFill).toBe('rgba(0, 0, 0, 0)');
+    expect(style.holderShadow).toBe('none');
+    expect(style.holderPseudo).toEqual(['none', 'none']);
+    expect(style.radius).toBeCloseTo(14 / 220, 3);
+    expect(style.border).toBe('1px');
+    expect(style.fill).not.toBe('rgb(251, 251, 250)');
+    expect(style.shadow).toContain('18px 40px -12px');
+  });
+});
+
+test.describe('badge mode follows the viewport width', () => {
+  test('swaps between the phone card and the 3d badge on resize', async ({
+    page,
+    browserName,
+    isMobile,
+  }) => {
+    chromiumDesktop(browserName, isMobile);
+    const errors = collectErrors(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await waitForBadge(page);
+    await expect(page.locator('#badge-slot canvas')).toHaveCount(1);
+
+    await page.setViewportSize({ width: 600, height: 900 });
+    await expect(page.locator('#badge-slot canvas')).toHaveCount(0);
+    await expect(page.locator('#badge-slot')).not.toHaveAttribute(
+      'data-badge-3d',
+    );
+    await expect(page.locator('[data-badge]')).toBeVisible();
+    await expect(page.locator('#badge-slot .strap')).toBeHidden();
+    await expect.poll(() => tiltOf(page)).toBeCloseTo(7, 1);
+    await expectTilt(page, 300, 1.58);
+    await page.evaluate(() => window.scrollTo(0, 0));
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(page.locator('#badge-slot')).toHaveAttribute(
+      'data-badge-3d',
+      'ready',
+      { timeout: 20_000 },
+    );
+    await expect(page.locator('#badge-slot canvas')).toHaveCount(1);
+    await expect(page.locator('[data-badge]')).toBeHidden();
+    expect(
+      await page.locator('[data-badge]').evaluate((el) => el.style.transform),
+    ).toBe('');
+    const rest = await atRest(page);
+    const before = await page.locator('#badge-slot .badge-frame').screenshot();
+    await page.mouse.move(rest.x, rest.y);
+    await page.mouse.down();
+    await moveTo(page, rest.x + 40, rest.y + 60, 10);
+    await page.mouse.up();
+    const during = await page.locator('#badge-slot .badge-frame').screenshot();
+    expect(during.equals(before)).toBe(false);
+    expect(errors).toEqual([]);
+  });
+
+  test.describe('on a touch tablet in landscape', () => {
+    test.use({ viewport: { width: 1024, height: 768 }, hasTouch: true });
+
+    test('shows the 3d badge', async ({ page, browserName, isMobile }) => {
+      chromiumDesktop(browserName, isMobile);
+      const errors = collectErrors(page);
+      await page.goto('/');
+      await waitForBadge(page);
+      await expect(page.locator('#badge-slot canvas')).toHaveCount(1);
+      await expect(page.locator('#badge-slot .badge-hit')).toHaveCount(1);
+      await expect(page.locator('[data-badge]')).toBeHidden();
+      expect(errors).toEqual([]);
     });
   });
 });
