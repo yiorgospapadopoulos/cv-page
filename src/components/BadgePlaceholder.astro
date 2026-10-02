@@ -3,6 +3,7 @@ import { profile } from '../content/profile';
 
 const { badge } = profile;
 const nameLines = badge.name.split(' ');
+const [roleHead, roleOrg] = badge.role.split(' @ ');
 ---
 
 <div id="badge-slot" class="badge-slot" aria-hidden="true">
@@ -17,7 +18,11 @@ const nameLines = badge.name.split(' ');
           <span>{line}</span>
         ))}
       </p>
-      <p class="card-role">{badge.role}</p>
+      <p class="card-role">
+        {roleHead}
+        {roleOrg !== undefined && ' '}
+        {roleOrg !== undefined && <span class="nowrap">@ {roleOrg}</span>}
+      </p>
       <p class="card-line">{badge.line}</p>
       <ul class="chips">
         {badge.chips.map((chip, i) => (
@@ -41,15 +46,15 @@ const nameLines = badge.name.split(' ');
   }
 
   .badge {
-    --strap-length: 170px;
+    --strap-length: 130px;
     position: absolute;
     top: 0;
     left: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 220px;
-    margin-left: -110px;
+    width: calc(220px * var(--card-scale));
+    margin-left: calc(-110px * var(--card-scale));
     transform-origin: 50% 0;
     scale: 1;
     animation: sway 7s ease-in-out infinite alternate;
@@ -98,7 +103,7 @@ const nameLines = badge.name.split(' ');
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 16px;
+    width: calc(16px * var(--card-scale));
     height: var(--strap-length);
     background: var(--ink);
     overflow: hidden;
@@ -108,16 +113,17 @@ const nameLines = badge.name.split(' ');
     writing-mode: vertical-rl;
     color: var(--term-muted);
     font-family: var(--font-mono);
-    font-size: 8px;
+    font-size: calc(8px * var(--card-scale));
     letter-spacing: 0.04em;
     white-space: nowrap;
   }
 
   .clip {
     flex: none;
-    width: 22px;
-    height: 26px;
-    border-radius: 3px 3px 6px 6px;
+    width: calc(22px * var(--card-scale));
+    height: calc(26px * var(--card-scale));
+    border-radius: calc(3px * var(--card-scale)) calc(3px * var(--card-scale))
+      calc(6px * var(--card-scale)) calc(6px * var(--card-scale));
     background: linear-gradient(90deg, #8a8a8a, #d6d6d6 45%, #7c7c7c);
     box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
   }
@@ -126,12 +132,13 @@ const nameLines = badge.name.split(' ');
     flex: none;
     display: flex;
     flex-direction: column;
-    width: 220px;
-    height: 310px;
-    margin-top: -4px;
-    padding: 20px 18px 16px;
+    width: calc(220px * var(--card-scale));
+    height: calc(310px * var(--card-scale));
+    margin-top: calc(-4px * var(--card-scale));
+    padding: calc(20px * var(--card-scale)) calc(18px * var(--card-scale))
+      calc(16px * var(--card-scale));
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: calc(14px * var(--card-scale));
     background: var(--paper);
     box-shadow:
       0 18px 40px -12px rgb(17 17 17 / 0.28),
@@ -143,37 +150,41 @@ const nameLines = badge.name.split(' ');
   .card-name {
     display: flex;
     flex-direction: column;
-    font-size: 1.75rem;
+    font-size: calc(28px * var(--card-scale));
     font-weight: 500;
     line-height: 1;
     letter-spacing: -0.03em;
   }
 
   .card-role {
-    margin-top: 18px;
-    font-size: 0.9rem;
+    margin-top: calc(18px * var(--card-scale));
+    font-size: calc(13px * var(--card-scale));
     font-weight: 500;
     line-height: 1.25;
   }
 
+  .nowrap {
+    white-space: nowrap;
+  }
+
   .card-line {
-    margin-top: 4px;
+    margin-top: calc(4px * var(--card-scale));
     color: var(--ink-muted);
-    font-size: 0.8rem;
+    font-size: calc(12.8px * var(--card-scale));
     line-height: 1.3;
   }
 
   .chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 16px;
+    gap: calc(6px * var(--card-scale));
+    margin-top: calc(16px * var(--card-scale));
   }
 
   .chip {
-    padding: 2px 9px;
+    padding: calc(2px * var(--card-scale)) calc(9px * var(--card-scale));
     border-radius: 999px;
-    font-size: 0.72rem;
+    font-size: calc(11.52px * var(--card-scale));
     line-height: 1.5;
   }
 
@@ -197,7 +208,7 @@ const nameLines = badge.name.split(' ');
     align-self: flex-end;
     color: var(--ink-muted);
     font-family: var(--font-mono);
-    font-size: 0.55rem;
+    font-size: calc(8.8px * var(--card-scale));
     letter-spacing: 0.04em;
   }
 
@@ -218,7 +229,7 @@ const nameLines = badge.name.split(' ');
       flex: 1 1 auto;
       justify-content: center;
       width: auto;
-      min-height: 440px;
+      min-height: calc(76px + 332px * var(--card-scale));
       padding: 12px 0 24px;
     }
 
@@ -229,8 +240,8 @@ const nameLines = badge.name.split(' ');
     }
 
     .strap {
-      flex: 1 1 auto;
-      min-height: 90px;
+      flex: 1 1 0;
+      min-height: 40px;
       max-height: 300px;
       height: auto;
     }

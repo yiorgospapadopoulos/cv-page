@@ -80,7 +80,12 @@ export function wrapText(
 ): string[] {
   const lines: string[] = [];
   let current = '';
+  const words: string[] = [];
   for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (words.at(-1) === '@') words[words.length - 1] = `@ ${word}`;
+    else words.push(word);
+  }
+  for (const word of words) {
     const candidate = current === '' ? word : `${current} ${word}`;
     if (current !== '' && width(candidate) > maxWidth) {
       lines.push(current);
@@ -165,7 +170,7 @@ export function layoutCardFront(
     {
       value: badge.role,
       gap: 18,
-      size: 14.4,
+      size: 13,
       lh: 1.25,
       weight: 500,
       color: cardPalette.ink,

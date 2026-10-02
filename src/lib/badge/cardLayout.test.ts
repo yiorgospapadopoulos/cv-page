@@ -91,9 +91,10 @@ describe('cardPalette', () => {
   });
 
   it('matches the placeholder card size', () => {
-    expect(placeholder).toContain(`width: ${cardSize.width}px;`);
-    expect(placeholder).toContain(`height: ${cardSize.height}px;`);
-    expect(placeholder).toContain(`border-radius: ${cardSize.radius}px;`);
+    const scaled = (px: number) => `calc(${px}px * var(--card-scale))`;
+    expect(placeholder).toContain(`width: ${scaled(cardSize.width)};`);
+    expect(placeholder).toContain(`height: ${scaled(cardSize.height)};`);
+    expect(placeholder).toContain(`border-radius: ${scaled(cardSize.radius)};`);
   });
 });
 
@@ -118,6 +119,12 @@ describe('wrapText', () => {
       'enormousword',
       'b',
     ]);
+  });
+
+  it('never breaks between an at sign and the word after it', () => {
+    expect(wrapText('a b @ cd', 50, width)).toEqual(['a b', '@ cd']);
+    expect(wrapText('a @ b', 100, width)).toEqual(['a @ b']);
+    expect(wrapText('a b @', 50, width)).toEqual(['a b @']);
   });
 
   it('collapses extra whitespace and returns nothing for blank text', () => {
@@ -183,7 +190,7 @@ describe('layoutCardFront', () => {
   it('places the role below the name and the muted line below the role', () => {
     const lastName = find(face.ops, badge.name.split(' ').at(-1)!);
     const roleOps = texts(face.ops).filter((op) =>
-      op.font.startsWith('500 57.6px'),
+      op.font.startsWith('500 52px'),
     );
     expect(roleOps.map((op) => op.text).join(' ')).toBe(badge.role);
     expect(roleOps[0]!.y).toBeGreaterThan(lastName.y);
@@ -192,6 +199,20 @@ describe('layoutCardFront', () => {
     );
     expect(lineOps.map((op) => op.text).join(' ')).toBe(badge.line);
     expect(lineOps[0]!.y).toBeGreaterThan(roleOps.at(-1)!.y);
+  });
+
+  it('keeps the employer together on the line after the role', () => {
+    const long = layoutCardFront(
+      { ...badge, role: 'ML & LLM Systems Engineer @ Zimmerman' },
+      options,
+    );
+    const roleOps = texts(long.ops).filter((op) =>
+      op.font.startsWith('500 52px'),
+    );
+    expect(roleOps.map((op) => op.text)).toEqual([
+      'ML & LLM Systems Engineer',
+      '@ Zimmerman',
+    ]);
   });
 
   it('wraps every text line inside the padding', () => {
