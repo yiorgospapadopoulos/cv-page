@@ -25,10 +25,24 @@ export const profile: Profile = {
   },
   about: {
     paragraphs: [
-      "Hi, I'm Yiorgos. I'm a machine learning engineer from Thessaloniki, Greece.",
-      'I like problems where a model has to be accurate and trustworthy at the same time, like reading medical images. And I like building the typed, tested backends that put those models in front of real people.',
+      "Hi, I'm Yiorgos, a machine learning engineer from Thessaloniki, Greece.",
+      "I'm drawn to problems where a model has to be both accurate and trustworthy, such as reading medical images. Just as much, I enjoy building the typed, tested backends that bring those models to real people.",
       "I studied Computer Science and Telecommunications at the University of Thessaly, spent an Erasmus+ year at ISLA Polytechnic Institute in Porto, and I'm now doing an MSc in Artificial Intelligence and Applications.",
-      'Outside code, I love fashion and the visual arts, and I try to bring that eye for detail into everything I build.',
+      'Outside code, I love fashion and the visual arts, and that eye for detail shapes everything I build.',
+    ],
+    facts: [
+      { key: 'name', value: ownerName },
+      { key: 'role', value: 'ML & LLM Systems Engineer @ Zimmerman' },
+      {
+        key: 'studying',
+        value: 'MSc AI & Applications @ University of Thessaly',
+      },
+      { key: 'based in', value: 'Thessaloniki, Greece' },
+      {
+        key: 'focus',
+        value: 'medical imaging, LLM systems, typed and tested Python backends',
+      },
+      { key: 'languages', value: 'Greek, English' },
     ],
     languages: ['Greek', 'English'],
   },

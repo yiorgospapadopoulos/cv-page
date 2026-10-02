@@ -13,8 +13,14 @@ export interface Hero {
   current: string[];
 }
 
+export interface Fact {
+  key: string;
+  value: string;
+}
+
 export interface About {
   paragraphs: string[];
+  facts: Fact[];
   languages: string[];
 }
 

@@ -18,6 +18,32 @@ describe('profile', () => {
     expect(profile.badge.role).toBe('ML & LLM Systems Engineer @ Zimmerman');
   });
 
+  it('has a whoami profile that does not repeat the about paragraphs', () => {
+    expect(profile.about.facts).toEqual([
+      { key: 'name', value: ownerName },
+      { key: 'role', value: 'ML & LLM Systems Engineer @ Zimmerman' },
+      {
+        key: 'studying',
+        value: 'MSc AI & Applications @ University of Thessaly',
+      },
+      { key: 'based in', value: 'Thessaloniki, Greece' },
+      {
+        key: 'focus',
+        value: 'medical imaging, LLM systems, typed and tested Python backends',
+      },
+      { key: 'languages', value: 'Greek, English' },
+    ]);
+    const facts = profile.about.facts.map((fact) => fact.value).join(' ');
+    for (const paragraph of profile.about.paragraphs) {
+      expect(facts).not.toContain(paragraph);
+    }
+  });
+
+  it('avoids repeating "like" in the about paragraphs', () => {
+    const text = profile.about.paragraphs.join(' ');
+    expect(text.match(/\blike\b/gi) ?? []).toHaveLength(0);
+  });
+
   it('lists only the language names', () => {
     expect(profile.about.languages).toEqual(['Greek', 'English']);
   });

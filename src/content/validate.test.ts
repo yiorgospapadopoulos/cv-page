@@ -15,6 +15,7 @@ const base: Profile = {
   hero: { intro: 'Hello.', moreLabel: '[more]', current: ['Role @ Company'] },
   about: {
     paragraphs: ['A paragraph.'],
+    facts: [{ key: 'name', value: 'Some Name' }],
     languages: ['English'],
   },
   badge: {
