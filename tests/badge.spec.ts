@@ -412,30 +412,17 @@ test.describe('3d badge', () => {
   });
 });
 
-function recordRotation(page: Page, ms: number) {
-  return page.locator('[data-badge]').evaluate(
-    (el: HTMLElement, duration) =>
-      new Promise<Array<{ t: number; angle: number; lag: number }>>(
-        (resolve) => {
-          const samples: Array<{ t: number; angle: number; lag: number }> = [];
-          const start = performance.now();
-          const step = () => {
-            const t = performance.now() - start;
-            const value = getComputedStyle(el).transform;
-            const m = value === 'none' ? new DOMMatrix() : new DOMMatrix(value);
-            samples.push({
-              t,
-              angle: (Math.atan2(m.b, m.a) * 180) / Math.PI,
-              lag: m.f,
-            });
-            if (t < duration) requestAnimationFrame(step);
-            else resolve(samples);
-          };
-          requestAnimationFrame(step);
-        },
-      ),
-    ms,
-  );
+async function tiltOf(page: Page): Promise<number> {
+  return page.locator('[data-badge]').evaluate((el) => {
+    const value = getComputedStyle(el).transform;
+    const m = value === 'none' ? new DOMMatrix() : new DOMMatrix(value);
+    return (Math.atan2(m.b, m.a) * 180) / Math.PI;
+  });
+}
+
+async function expectTilt(page: Page, y: number, degrees: number) {
+  await page.evaluate((top) => window.scrollTo(0, top), y);
+  await expect.poll(() => tiltOf(page)).toBeCloseTo(degrees, 1);
 }
 
 async function swipeUp(page: Page, x: number, y: number, distance = 220) {
@@ -494,35 +481,68 @@ test.describe('static badge on touch devices', () => {
     );
   });
 
-  test('sways after a quick scroll and settles back to straight', async ({
-    page,
-  }) => {
-    const card = await page.locator('#badge-slot .card').boundingBox();
-    const recording = recordRotation(page, 4500);
-    await page.waitForTimeout(300);
-    await swipeUp(page, card!.x + card!.width / 2, card!.y + 40, 160);
-    const samples = await recording;
+  test('has no strap, clip or cord', async ({ page }) => {
+    await expect(page.locator('#badge-slot .strap')).toBeHidden();
+    await expect(page.locator('#badge-slot .clip')).toBeHidden();
+    await expect(page.locator('#badge-slot .strap-text')).toBeHidden();
+  });
 
-    const before = samples.filter((s) => s.t < 250);
-    expect(before.every((s) => s.angle === 0)).toBe(true);
-    const widest = Math.max(...samples.map((s) => Math.abs(s.angle)));
-    expect(widest).toBeGreaterThan(0.5);
-    expect(widest).toBeLessThanOrEqual(6.01);
-    expect(Math.max(...samples.map((s) => Math.abs(s.lag)))).toBeLessThan(5);
-    const last = samples.at(-1)!;
-    expect(Math.abs(last.angle)).toBeLessThan(0.3);
+  test('rests tilted 7 degrees clockwise at the top', async ({ page }) => {
+    expect(await tiltOf(page)).toBeCloseTo(7, 1);
+  });
+
+  test('turns with the scroll position and back again', async ({ page }) => {
+    await expectTilt(page, 300, 1.58);
+    await expectTilt(page, 600, -3.84);
+    await expectTilt(page, 150, 4.29);
+    await expectTilt(page, 0, 7);
+  });
+
+  test('stays in place while it turns', async ({ page }) => {
+    const before = await page.locator('[data-badge]').evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 + window.scrollY };
+    });
+    await expectTilt(page, 300, 1.58);
+    const after = await page.locator('[data-badge]').evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 + window.scrollY };
+    });
+    expect(Math.abs(after.x - before.x)).toBeLessThan(1);
+    expect(Math.abs(after.y - before.y)).toBeLessThan(1);
+  });
+
+  test('has no running animation', async ({ page }) => {
+    const running = await page
+      .locator('[data-badge]')
+      .evaluate((el) => el.getAnimations().length);
+    expect(running).toBe(0);
+  });
+
+  test('is wide on a phone and horizontally centred', async ({ page }) => {
+    const [holder, viewport] = await Promise.all([
+      page.locator('[data-badge]').evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return { width: el.clientWidth, centre: r.x + r.width / 2 };
+      }),
+      page.evaluate(() => window.innerWidth),
+    ]);
+    if (viewport < 500) {
+      expect(holder.width / viewport).toBeGreaterThan(0.6);
+      expect(holder.width / viewport).toBeLessThanOrEqual(0.81);
+    }
+    expect(Math.abs(holder.centre - viewport / 2)).toBeLessThan(2);
   });
 
   test.describe('with reduced motion', () => {
     test.use({ reducedMotion: 'reduce' });
 
-    test('does not sway when scrolling', async ({ page }) => {
-      const card = await page.locator('#badge-slot .card').boundingBox();
-      const recording = recordRotation(page, 2000);
-      await swipeUp(page, card!.x + card!.width / 2, card!.y + 40, 160);
-      const samples = await recording;
-      expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(50);
-      expect(samples.every((s) => s.angle === 0 && s.lag === 0)).toBe(true);
+    test('keeps the 7 degree tilt and ignores scrolling', async ({ page }) => {
+      expect(await tiltOf(page)).toBeCloseTo(7, 1);
+      await page.evaluate(() => window.scrollTo(0, 300));
+      await page.waitForTimeout(500);
+      expect(await page.evaluate(() => window.scrollY)).toBe(300);
+      expect(await tiltOf(page)).toBeCloseTo(7, 1);
     });
   });
 });

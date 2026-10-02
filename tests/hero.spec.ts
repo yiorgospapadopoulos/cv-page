@@ -172,6 +172,7 @@ test.describe('badge placeholder', () => {
   test('sways when the 3d badge is unavailable', async ({ page }) => {
     await page.addInitScript(disableWebGL);
     await page.goto('/');
+    test.skip(await isTouchFirst(page), 'Touch devices tilt with scroll');
     await expect(page.locator('[data-badge]')).toBeVisible();
     const running = await page
       .locator('[data-badge]')
@@ -263,6 +264,16 @@ for (const motion of ['no-preference', 'reduce'] as const) {
           }));
         expect(label.bottom).toBeGreaterThan(0);
         expect(label.top).toBeLessThanOrEqual(label.visible);
+      } else if (await isTouchFirst(page)) {
+        const [holder, card] = await Promise.all([
+          box(page, '#badge-slot [data-badge]'),
+          box(page, '#badge-slot .card'),
+        ]);
+        expect(intersects(holder, intro)).toBe(false);
+        expect(intersects(holder, current)).toBe(false);
+        expect(intersects(card, name2)).toBe(false);
+        expect(holder.x).toBeGreaterThanOrEqual(0);
+        expect(holder.x + holder.width).toBeLessThanOrEqual(viewportWidth);
       } else {
         const [strap, text, card] = await Promise.all([
           box(page, '#badge-slot .strap'),
