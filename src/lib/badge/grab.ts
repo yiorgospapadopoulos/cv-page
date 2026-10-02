@@ -1,14 +1,6 @@
 import type { Vec3 } from './stage';
 
 export const grabPadding = 24;
-const tapTime = 250;
-const tapDistance = 6;
-
-interface Press {
-  x: number;
-  y: number;
-  time: number;
-}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -24,13 +16,6 @@ export function grabAnchor(
     clamp(y, -card.height / 2, card.height / 2 + clipTop),
     0,
   ];
-}
-
-export function isTap(down: Press, up: Press): boolean {
-  return (
-    up.time - down.time < tapTime &&
-    Math.hypot(up.x - down.x, up.y - down.y) < tapDistance
-  );
 }
 
 export function tiltDegrees(q: {

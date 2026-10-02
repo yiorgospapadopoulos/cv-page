@@ -3,7 +3,6 @@ import {
   grabAnchor,
   gripImpulse,
   hoverImpulse,
-  isTap,
   screenBounds,
   tiltDegrees,
 } from './grab';
@@ -18,19 +17,6 @@ describe('grabAnchor', () => {
   it('pulls a point in the padding onto the nearest card edge', () => {
     expect(grabAnchor([1.2, -1.5, 0], card, 0.2)).toEqual([0.8, -1.1, 0]);
     expect(grabAnchor([-1.2, 2, 0], card, 0.2)).toEqual([-0.8, 1.3, 0]);
-  });
-});
-
-describe('isTap', () => {
-  const down = { x: 10, y: 10, time: 1000 };
-
-  it('accepts a short press that barely moves', () => {
-    expect(isTap(down, { x: 13, y: 12, time: 1200 })).toBe(true);
-  });
-
-  it('rejects a long press or a drag', () => {
-    expect(isTap(down, { x: 10, y: 10, time: 1300 })).toBe(false);
-    expect(isTap(down, { x: 20, y: 10, time: 1100 })).toBe(false);
   });
 });
 

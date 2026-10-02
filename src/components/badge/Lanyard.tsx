@@ -16,7 +16,6 @@ import {
   grabPadding,
   gripImpulse,
   hoverImpulse,
-  isTap,
   screenBounds,
   tiltDegrees,
 } from '../../lib/badge/grab';
@@ -24,7 +23,6 @@ import {
   freeDamping,
   toWorld,
   twistRate,
-  unwrapAngle,
   yawAngle,
 } from '../../lib/badge/physics';
 import { ribbon, ribbonIndices, strapCoordinates } from '../../lib/badge/rope';
@@ -58,7 +56,6 @@ interface Drag {
   pointerId: number;
   target: [number, number];
   local: THREE.Vector3;
-  press: { x: number; y: number; time: number };
 }
 
 interface Hover {
@@ -311,8 +308,6 @@ export default function Lanyard({
       p: new THREE.Vector3(),
       q: new THREE.Quaternion(),
       frames: 0,
-      yaw: 0,
-      facing: 0,
       still: 0,
       nudged: false,
       ready: false,
@@ -347,18 +342,6 @@ export default function Lanyard({
     if (d === null) return;
     if (event && event.pointerId !== d.pointerId) return;
     drag.current = null;
-    const c = card.current;
-    const tap =
-      event?.type === 'pointerup' &&
-      isTap(d.press, {
-        x: event.clientX,
-        y: event.clientY,
-        time: performance.now(),
-      });
-    if (c !== null && tap) {
-      work.facing += 2 * Math.PI;
-      c.setAngvel({ x: 0, y: world.flipSpin, z: 0 }, true);
-    }
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
     setDragging(false);
@@ -420,7 +403,6 @@ export default function Lanyard({
       pointerId: native.pointerId,
       target: handTarget(native.clientX, native.clientY),
       local: new THREE.Vector3(gx, gy, 0),
-      press: { x: native.clientX, y: native.clientY, time: performance.now() },
     };
     try {
       hero.setPointerCapture(native.pointerId);
@@ -491,13 +473,12 @@ export default function Lanyard({
       );
       h.impulse = [0, 0, 0];
     }
-    work.yaw = unwrapAngle(work.yaw, yawAngle(rot));
     if (!c.isSleeping()) {
       const ang = c.angvel();
       c.setAngvel(
         {
           x: ang.x,
-          y: ang.y + twistRate(work.yaw - work.facing, ang.y, dt, world.twist),
+          y: ang.y + twistRate(yawAngle(rot), ang.y, dt, world.twist),
           z: ang.z,
         },
         false,

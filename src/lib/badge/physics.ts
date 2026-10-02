@@ -16,7 +16,6 @@ export const physics = {
   grip: { strength: 100, radius: 0.65, maxAccel: 110 },
   hover: { limitX: 12, limitY: 8, scaleX: 0.0016, scaleY: 0.0008, force: 1 },
   twist: { strength: 2.2, progressive: 1, damping: 2, limit: 2 },
-  flipSpin: 4,
   nudge: 0.3,
   frustumMargin: 16,
   restSpeed: 0.01,
@@ -68,14 +67,6 @@ export function yawAngle(q: {
   const nx = 2 * (q.x * q.z + q.w * q.y);
   const nz = 1 - 2 * (q.x * q.x + q.y * q.y);
   return Math.atan2(nx, nz);
-}
-
-// Continues a running angle with a new reading in (-pi, pi], so whole turns
-// are counted rather than wrapped away.
-export function unwrapAngle(previous: number, angle: number): number {
-  const turn = 2 * Math.PI;
-  const delta = angle - previous;
-  return previous + delta - turn * Math.round(delta / turn);
 }
 
 // Change in spin about the vertical axis for one step, given how far the card

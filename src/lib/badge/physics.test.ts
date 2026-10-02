@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  freeDamping,
-  physics,
-  toWorld,
-  twistRate,
-  unwrapAngle,
-  yawAngle,
-} from './physics';
+import { freeDamping, physics, toWorld, twistRate, yawAngle } from './physics';
 
 describe('toWorld', () => {
   it('keeps metre based values when one world unit is a metre', () => {
@@ -100,28 +93,11 @@ describe('twistRate', () => {
     expect(far).toBeCloseTo((2 + 1) * 0.1);
   });
 
-  it('limits the pull so a full turn after a tap spins at a calm pace', () => {
-    expect(twistRate(-2 * Math.PI, 0, 0.1, twist)).toBeCloseTo((4 + 4) * 0.1);
+  it('limits the pull when the card is turned far round', () => {
+    expect(twistRate(-3, 0, 0.1, twist)).toBeCloseTo((4 + 4) * 0.1);
   });
 
   it('damps the swivel', () => {
     expect(twistRate(0, 4, 0.1, twist)).toBeCloseTo(-0.2);
-  });
-});
-
-describe('unwrapAngle', () => {
-  it('follows small changes directly', () => {
-    expect(unwrapAngle(0.5, 0.7)).toBeCloseTo(0.7);
-    expect(unwrapAngle(-0.5, -0.7)).toBeCloseTo(-0.7);
-  });
-
-  it('keeps counting past half a turn instead of jumping back', () => {
-    expect(unwrapAngle(3, -3)).toBeCloseTo(2 * Math.PI - 3);
-    expect(unwrapAngle(-3, 3)).toBeCloseTo(3 - 2 * Math.PI);
-  });
-
-  it('keeps counting over several turns', () => {
-    const turned = unwrapAngle(4 * Math.PI + 3, -3);
-    expect(turned).toBeCloseTo(6 * Math.PI - 3);
   });
 });
