@@ -57,6 +57,7 @@ describe('site text and the shipped font subset', () => {
       ...welcomeLines,
       tryIt.heading,
       tryIt.panelHeading,
+      tryIt.placeholder,
       windowTitle,
     ];
     const outside = text.filter((value) => !isLatin(value));

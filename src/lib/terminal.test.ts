@@ -148,13 +148,14 @@ describe('try-it chrome', () => {
     expect(tryIt.heading).toBe('Try it');
     expect(tryIt.panelHeading).toBe('Try a command');
     expect(tryIt.inputLabel).toBe('Terminal command');
+    expect(tryIt.placeholder).toBe('type a command and press Enter');
     expect(terminalSections.map((s) => s.id)).not.toContain(tryIt.id);
   });
 
   it('has the two welcome lines and a quick typing speed', () => {
     expect([...welcomeLines]).toEqual([
-      'Welcome. This terminal works.',
-      'Type help, or pick a command from the list.',
+      'Welcome. You can type here.',
+      'Try help, or pick a command from the list.',
     ]);
     expect(panelTypingMs).toBe(18);
   });

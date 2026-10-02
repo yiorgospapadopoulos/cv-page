@@ -28,11 +28,12 @@ export interface PromptDeps {
   reducedMotion: boolean;
   actions: Actions;
   charMs: number;
+  focusAfterPanel: boolean;
 }
 
 export interface Prompt {
   run(text: string): void;
-  typeAndRun(text: string): void;
+  typeAndRun(text: string, focusAfter?: boolean): void;
 }
 
 const runPauseMs = 140;
@@ -150,20 +151,21 @@ export function initPrompt(root: HTMLElement, deps: PromptDeps): Prompt {
     perform(action);
   };
 
-  const finish = (text: string) => {
+  const finish = (text: string, focusAfter: boolean) => {
     busy = false;
     input.readOnly = false;
     run(text);
+    if (focusAfter) input.focus();
   };
 
-  const typeAndRun = (text: string) => {
+  const typeAndRun = (text: string, focusAfter = false) => {
     if (busy) return;
     busy = true;
     input.readOnly = true;
     input.value = '';
     if (deps.reducedMotion) {
       input.value = text;
-      finish(text);
+      finish(text, focusAfter);
       return;
     }
     const target = {
@@ -176,7 +178,7 @@ export function initPrompt(root: HTMLElement, deps: PromptDeps): Prompt {
       text,
       typingDelays(text, deps.charMs, hashSeed(text)),
       deps.schedule,
-      () => deps.schedule(() => finish(text), runPauseMs),
+      () => deps.schedule(() => finish(text, focusAfter), runPauseMs),
     );
   };
 
@@ -206,8 +208,11 @@ export function initPrompt(root: HTMLElement, deps: PromptDeps): Prompt {
   });
 
   for (const button of root.querySelectorAll<HTMLElement>('[data-command]')) {
-    button.addEventListener('click', () =>
-      typeAndRun(button.dataset.command as string),
+    button.addEventListener('click', (event) =>
+      typeAndRun(
+        button.dataset.command as string,
+        deps.focusAfterPanel && event.detail > 0,
+      ),
     );
   }
 

@@ -40,7 +40,7 @@ function manualScheduler() {
   return { schedule, flush, queue };
 }
 
-function setup(reducedMotion = true) {
+function setup(reducedMotion = true, focusAfterPanel = false) {
   document.body.innerHTML = fixture;
   const root = document.querySelector<HTMLElement>('[data-prompt]')!;
   const actions: Actions = { open: vi.fn(), download: vi.fn() };
@@ -51,6 +51,7 @@ function setup(reducedMotion = true) {
     reducedMotion,
     actions,
     charMs: 18,
+    focusAfterPanel,
   });
   const input = root.querySelector<HTMLInputElement>('[data-input]')!;
   const log = root.querySelector<HTMLElement>('[data-log]')!;
@@ -129,6 +130,7 @@ describe('initPrompt wiring', () => {
         reducedMotion: true,
         actions: { open: vi.fn(), download: vi.fn() },
         charMs: 18,
+        focusAfterPanel: false,
       }),
     ).toThrow('[data-log]');
   });
@@ -392,6 +394,57 @@ describe('panel buttons with motion', () => {
     env.scheduler.flush();
     keydown(env.input, 'ArrowUp');
     expect(env.input.value).toBe('whoami');
+  });
+});
+
+describe('focus after a panel command', () => {
+  const click = (env: ReturnType<typeof setup>, command: string) =>
+    env.root
+      .querySelector<HTMLButtonElement>(`[data-command="${command}"]`)!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+
+  it('focuses the input once the command has run when enabled', () => {
+    const env = setup(false, true);
+    click(env, 'help');
+    expect(document.activeElement).not.toBe(env.input);
+    env.scheduler.flush();
+    expect(env.log.textContent).toContain(`${promptText} help`);
+    expect(document.activeElement).toBe(env.input);
+  });
+
+  it('focuses at once with reduced motion', () => {
+    const env = setup(true, true);
+    click(env, 'help');
+    expect(document.activeElement).toBe(env.input);
+  });
+
+  it('leaves focus alone when disabled, as on touch devices', () => {
+    const env = setup(true, false);
+    click(env, 'help');
+    expect(env.log.children).toHaveLength(1);
+    expect(document.activeElement).not.toBe(env.input);
+  });
+
+  it('leaves focus on the button when it was activated by keyboard', () => {
+    const env = setup(true, true);
+    const button = env.root.querySelector<HTMLButtonElement>(
+      '[data-command="help"]',
+    )!;
+    button.focus();
+    button.click();
+    expect(env.log.children).toHaveLength(1);
+    expect(document.activeElement).toBe(button);
+  });
+});
+
+describe('typing by keyboard', () => {
+  it('prints the shell error and the help hint for an unknown command', () => {
+    const env = setup();
+    enter(env, 'foo');
+    expect(env.log.textContent).toContain(`${promptText} foo`);
+    expect(env.log.textContent).toContain(
+      'command not found: foo. Type help to see what I can do.',
+    );
   });
 });
 

@@ -38,7 +38,7 @@ const entries = panelEntries(profile);
               autocorrect="off"
               spellcheck="false"
               enterkeyhint="go"
-              placeholder=" "
+              placeholder={tryIt.placeholder}
             />
             <span class="idle-cursor" aria-hidden="true"></span>
           </span>
@@ -80,6 +80,7 @@ const entries = panelEntries(profile);
       reducedMotion: prefersReducedMotion(window),
       actions: browserActions(window, document),
       charMs: panelTypingMs,
+      focusAfterPanel: window.matchMedia('(pointer: fine)').matches,
     });
   }
 </script>
@@ -156,6 +157,15 @@ const entries = panelEntries(profile);
     font: inherit;
     font-variant-ligatures: none;
     appearance: none;
+  }
+
+  .input::placeholder {
+    color: var(--term-muted);
+    opacity: 1;
+  }
+
+  .live:not(:focus-within) .input:placeholder-shown {
+    text-indent: 1.2ch;
   }
 
   .idle-cursor {

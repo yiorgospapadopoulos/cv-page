@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { profile } from '../src/content/profile';
 import { panelCommands } from '../src/lib/commands';
-import { welcomeLines } from '../src/lib/terminal';
+import { tryIt, welcomeLines } from '../src/lib/terminal';
 
 const { projects, commands, links } = profile;
 const thesis = projects.find((project) => project.slug === 'thesis')!;
@@ -40,6 +40,22 @@ test.describe('the live prompt', () => {
     await expect(input(page)).toHaveAttribute('enterkeyhint', 'go');
   });
 
+  test('shows a muted placeholder that disappears when typing', async ({
+    page,
+  }) => {
+    await expect(input(page)).toHaveAttribute('placeholder', tryIt.placeholder);
+    const state = () =>
+      input(page).evaluate((el) => ({
+        shown: el.matches(':placeholder-shown'),
+        colour: getComputedStyle(el, '::placeholder').color,
+      }));
+    expect((await state()).shown).toBe(true);
+    expect((await state()).colour).toBe('rgb(139, 148, 158)');
+    await input(page).focus();
+    await page.keyboard.type('h');
+    expect((await state()).shown).toBe(false);
+  });
+
   test('clicking the terminal body focuses the input', async ({ page }) => {
     await log(page).getByText(welcomeLines[0]).click();
     await expect(input(page)).toBeFocused();
@@ -72,6 +88,26 @@ test.describe('the live prompt', () => {
   test('an unknown command shows the not-found message', async ({ page }) => {
     await enter(page, 'frobnicate now');
     await expect(log(page)).toContainText(notFound('frobnicate'));
+  });
+
+  test('typing foo by keyboard prints the shell error and the hint', async ({
+    page,
+  }) => {
+    await log(page).getByText(welcomeLines[0]).click();
+    await page.keyboard.type('foo');
+    await page.keyboard.press('Enter');
+    await expect(log(page)).toContainText('yiorgos@papadopoulos:~$ foo');
+    await expect(log(page)).toContainText(notFound('foo'));
+    await expect(input(page)).toHaveValue('');
+    await expect(input(page)).toBeFocused();
+  });
+
+  test('typing whoami by keyboard alone runs it', async ({ page }) => {
+    await log(page).getByText(welcomeLines[0]).click();
+    await page.keyboard.type('whoami');
+    await page.keyboard.press('Enter');
+    await expect(log(page)).toContainText('yiorgos@papadopoulos:~$ whoami');
+    await expect(log(page)).toContainText(profile.hero.intro);
   });
 
   test('whitespace and case are forgiven', async ({ page }) => {
@@ -203,10 +239,20 @@ test.describe('the command panel', () => {
     await expect(log(page).locator('> *')).toHaveCount(0);
   });
 
-  test('does not steal focus from the page', async ({ page }) => {
+  test('focuses the input after a click on a fine pointer only', async ({
+    page,
+    hasTouch,
+  }) => {
     await button(page, 'help').click();
     await expect(log(page)).toContainText('Available commands');
-    await expect(input(page)).not.toBeFocused();
+    if (hasTouch) {
+      await expect(input(page)).not.toBeFocused();
+    } else {
+      await expect(input(page)).toBeFocused();
+      await page.keyboard.type('whoami');
+      await page.keyboard.press('Enter');
+      await expect(log(page)).toContainText(profile.hero.intro);
+    }
   });
 
   test('github opens the profile in a new tab', async ({ page, context }) => {

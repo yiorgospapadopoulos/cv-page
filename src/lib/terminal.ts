@@ -22,11 +22,12 @@ export const tryIt = {
   heading: 'Try it',
   panelHeading: 'Try a command',
   inputLabel: 'Terminal command',
+  placeholder: 'type a command and press Enter',
 } as const;
 
 export const welcomeLines = [
-  'Welcome. This terminal works.',
-  'Type help, or pick a command from the list.',
+  'Welcome. You can type here.',
+  'Try help, or pick a command from the list.',
 ] as const;
 
 export const panelTypingMs = 18;
