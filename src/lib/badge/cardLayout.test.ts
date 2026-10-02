@@ -91,7 +91,7 @@ describe('cardPalette', () => {
   });
 
   it('matches the placeholder card size', () => {
-    const scaled = (px: number) => `calc(${px}px * var(--card-scale))`;
+    const scaled = (px: number) => `calc(${px} * var(--u))`;
     expect(placeholder).toContain(`width: ${scaled(cardSize.width)};`);
     expect(placeholder).toContain(`height: ${scaled(cardSize.height)};`);
     expect(placeholder).toContain(`border-radius: ${scaled(cardSize.radius)};`);
