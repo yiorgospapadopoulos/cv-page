@@ -104,12 +104,10 @@ The Rapier engine is WebAssembly; a small build plugin in `astro.config.mjs` ser
 
 ## Deployment
 
-The site is hosted on Cloudflare Pages at https://yiorgospapadopoulos.dev (domain registered with Cloudflare Registrar). The build output is plain static files in `dist/`; Cloudflare compresses text and `.wasm` files and serves `.wasm` as `application/wasm`. The site URL lives in `src/lib/site.ts` (`siteUrl`) and feeds `site` in `astro.config.mjs`, so the canonical link and social preview image are absolute.
+The site is hosted on Cloudflare Workers static assets (the successor to Cloudflare Pages) at https://yiorgospapadopoulos.dev, with the domain registered on Cloudflare Registrar. `wrangler.jsonc` only tells Cloudflare to serve the built `dist/` folder as the project `yiorgospapadopoulos`; there is no server code and no adapter. Cloudflare compresses text and `.wasm` files and applies `public/_headers` (security headers and long caching for hashed files in `/_astro/`). The site URL lives in `src/lib/site.ts` (`siteUrl`) and feeds `site` in `astro.config.mjs`, so the canonical link and social preview image are absolute.
 
-One-time setup:
+One-time setup on a new machine: `npx wrangler login` opens the browser to authorize your Cloudflare account.
 
-1. `npx wrangler login` opens the browser to authorize your Cloudflare account.
-2. `npm run deploy:setup` creates the Pages project `yiorgospapadopoulos` (only needed once per account).
-3. Attach the custom domains, once, in the Cloudflare dashboard: Workers and Pages, project `yiorgospapadopoulos`, Custom domains, then add `yiorgospapadopoulos.dev` and `www.yiorgospapadopoulos.dev`. DNS records and HTTPS are set up automatically because the domain is on Cloudflare.
+Publishing a change: `npm run deploy`. It runs every quality gate (`npm run check`, which builds) and every browser test (`npm run test:e2e`), and only then uploads `dist/` with `wrangler deploy`.
 
-Publishing a change: `npm run deploy`. It runs every quality gate (`npm run check`, which also builds), then the browser tests (`npm run test:e2e`), and only then uploads `dist/` to the production branch. Wrangler warns when the working tree has uncommitted changes, so commit first. `public/_headers` sets security headers and long caching for the hashed files in `/_astro/`.
+Custom domain (one time, in the Cloudflare dashboard): Workers and Pages, project `yiorgospapadopoulos`, Settings, Domains and Routes, add `yiorgospapadopoulos.dev` as a custom domain. DNS and HTTPS are set up automatically because the domain is on Cloudflare. A redirect rule sends `www.yiorgospapadopoulos.dev` to `https://yiorgospapadopoulos.dev`.
