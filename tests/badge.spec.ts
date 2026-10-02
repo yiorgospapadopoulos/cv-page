@@ -726,6 +726,15 @@ function phoneCardSuite(onlyDesktopChromium: boolean) {
     expect(running).toBe(0);
   });
 
+  test('turns on its own layer so scrolling does not repaint it', async ({
+    page,
+  }) => {
+    await expect(page.locator('[data-badge]')).toHaveCSS(
+      'will-change',
+      'transform',
+    );
+  });
+
   test('is wide on a phone and horizontally centred', async ({ page }) => {
     const [holder, viewport] = await Promise.all([
       page.locator('[data-badge]').evaluate((el) => {
@@ -743,6 +752,13 @@ function phoneCardSuite(onlyDesktopChromium: boolean) {
 
   test.describe('with reduced motion', () => {
     test.use({ reducedMotion: 'reduce' });
+
+    test('needs no layer of its own', async ({ page }) => {
+      await expect(page.locator('[data-badge]')).toHaveCSS(
+        'will-change',
+        'auto',
+      );
+    });
 
     test('keeps the 7 degree tilt and ignores scrolling', async ({ page }) => {
       expect(await tiltOf(page)).toBeCloseTo(7, 1);

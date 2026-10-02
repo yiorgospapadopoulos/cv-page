@@ -251,6 +251,12 @@ test.describe('badge placeholder', () => {
     });
   });
 
+  test('has no layer hint on wide screens', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/');
+    await expect(page.locator('[data-badge]')).toHaveCSS('will-change', 'auto');
+  });
+
   test('stays hidden from the first paint until the 3d badge is ready', async ({
     page,
   }) => {

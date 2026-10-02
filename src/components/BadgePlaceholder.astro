@@ -276,4 +276,11 @@ const line = splitAffiliation(badge.line);
       rotate: none;
     }
   }
+
+  /* The scroll tilt then only moves a layer instead of repainting the card. */
+  @media (max-width: 859px) and (prefers-reduced-motion: no-preference) {
+    .badge {
+      will-change: transform;
+    }
+  }
 </style>
