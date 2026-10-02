@@ -6,6 +6,7 @@ import '../styles/global.css';
 import { badgeHeadScript } from '../lib/badge/entrance';
 import { fontFaceCss } from '../lib/fonts';
 import { skipLink } from '../lib/site';
+import { stableHeightScript } from '../lib/viewport';
 
 interface Props {
   title: string;
@@ -69,6 +70,7 @@ const pageUrl =
       }
     </script>
     <script is:inline set:html={badgeHeadScript} />
+    <script is:inline set:html={stableHeightScript} />
   </head>
   <body>
     <a class="skip-link" href={`#${skipLink.target}`}>

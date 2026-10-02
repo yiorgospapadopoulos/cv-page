@@ -243,7 +243,7 @@ const line = splitAffiliation(badge.line);
 
   @media (max-width: 859px) {
     .badge-slot {
-      --w: min(80cqw, 380px, calc((100svh - 230px) / 1.6));
+      --w: min(80cqw, 380px, calc((var(--vh-stable, 100svh) - 230px) / 1.6));
       position: relative;
       left: auto;
       display: flex;

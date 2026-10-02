@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { devices, expect, test, type Page } from '@playwright/test';
 import { profile } from '../src/content/profile';
 import { grabPadding } from '../src/lib/badge/grab';
 import {
@@ -477,4 +477,73 @@ test('the corner text keeps a side gutter on phones', async ({ page }) => {
     expect(text.x).toBeGreaterThanOrEqual(16);
     expect(320 - (text.x + text.width)).toBeGreaterThanOrEqual(16);
   }
+});
+
+test.describe('phone hero while the browser toolbar hides and shows', () => {
+  const phones = { chromium: devices['Pixel 7'], webkit: devices['iPhone 13'] };
+
+  async function phoneLayout(page: Page) {
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve)),
+        ),
+    );
+    return page.evaluate(() => {
+      const rect = (selector: string) =>
+        document.querySelector(selector)!.getBoundingClientRect();
+      const card = rect('#badge-slot .card');
+      return {
+        cardWidth: card.width,
+        cardHeight: card.height,
+        nameTop: rect('h1.name').top + window.scrollY,
+        heroHeight: rect('header.hero').height,
+      };
+    });
+  }
+
+  test('keeps the card size and the name in place', async ({
+    browser,
+    browserName,
+  }) => {
+    const device = phones[browserName as keyof typeof phones] ?? {};
+    const width = device.viewport?.width ?? 390;
+    const context = await browser.newContext({
+      ...device,
+      viewport: { width, height: 664 },
+    });
+    const page = await context.newPage();
+    await page.goto('/');
+    const before = await phoneLayout(page);
+    expect(before.heroHeight).toBeCloseTo(664, 0);
+
+    for (const height of [750, 700, 664, 750]) {
+      await page.setViewportSize({ width, height });
+      expect(await phoneLayout(page)).toEqual(before);
+    }
+    await context.close();
+  });
+
+  test('measures the height again when the width changes', async ({
+    browser,
+    browserName,
+  }) => {
+    const device = phones[browserName as keyof typeof phones] ?? {};
+    const width = device.viewport?.width ?? 390;
+    const context = await browser.newContext({
+      ...device,
+      viewport: { width, height: 664 },
+    });
+    const page = await context.newPage();
+    await page.goto('/');
+    const before = await phoneLayout(page);
+
+    await page.setViewportSize({ width: width + 40, height: 750 });
+    await expect
+      .poll(async () => (await phoneLayout(page)).heroHeight)
+      .toBeCloseTo(750, 0);
+    const after = await phoneLayout(page);
+    expect(after.cardWidth).toBeGreaterThan(before.cardWidth + 10);
+    await context.close();
+  });
 });
