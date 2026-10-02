@@ -58,7 +58,13 @@ const pageUrl =
         !matchMedia('(prefers-reduced-motion: reduce)').matches &&
         'IntersectionObserver' in window
       ) {
-        document.documentElement.classList.add('typing');
+        const root = document.documentElement;
+        root.classList.add('typing');
+        setTimeout(() => {
+          if (root.dataset.typing === 'on') return;
+          root.classList.remove('typing');
+          root.dataset.typing = 'off';
+        }, 3000);
       }
     </script>
   </head>

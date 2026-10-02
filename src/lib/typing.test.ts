@@ -402,6 +402,7 @@ describe('observeOnce', () => {
 describe('initTyping', () => {
   beforeEach(() => {
     document.documentElement.className = '';
+    delete document.documentElement.dataset['typing'];
     document.body.innerHTML = terminalHtml();
   });
 
@@ -506,6 +507,43 @@ describe('initTyping', () => {
     const stray = document.createElement('div');
     instances[0]!.callback([{ isIntersecting: true, target: stray }]);
     expect(queue).toHaveLength(0);
+  });
+
+  it('marks the page as typing so the safety timer stands down', () => {
+    const { Ctor } = fakeObserver();
+    initTyping(document, motionAllowed(Ctor), manualScheduler().schedule);
+    expect(document.documentElement.dataset['typing']).toBe('on');
+  });
+
+  it('does nothing when the safety timer already gave up', () => {
+    document.documentElement.dataset['typing'] = 'off';
+    const { Ctor, instances } = fakeObserver();
+    const started = initTyping(
+      document,
+      motionAllowed(Ctor),
+      manualScheduler().schedule,
+    );
+    expect(started).toBe(false);
+    expect(document.documentElement.classList.contains('typing')).toBe(false);
+    expect(document.documentElement.dataset['typing']).toBe('off');
+    expect(instances).toHaveLength(0);
+  });
+
+  it('shows all text if setting up the animation throws', () => {
+    const Broken = class {
+      constructor() {
+        throw new Error('observer failed');
+      }
+    } as unknown as ObserverCtor;
+    document.documentElement.classList.add('typing');
+    const started = initTyping(
+      document,
+      motionAllowed(Broken),
+      manualScheduler().schedule,
+    );
+    expect(started).toBe(false);
+    expect(document.documentElement.classList.contains('typing')).toBe(false);
+    expect(document.documentElement.dataset['typing']).toBe('off');
   });
 
   it('uses setTimeout when no scheduler is given', () => {

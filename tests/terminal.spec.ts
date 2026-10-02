@@ -145,6 +145,38 @@ test.describe('with motion allowed', () => {
   });
 });
 
+test.describe('when the typing script fails to load', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('shows the terminal text after a short wait', async ({ page }) => {
+    await page.route(/\/_astro\/(typing|TerminalWindow)[^/]*\.js$/, (route) =>
+      route.abort(),
+    );
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveClass(/typing/);
+    await expect(page.locator('#stack [data-block]')).toHaveCSS('opacity', '0');
+
+    await expect(page.locator('html')).not.toHaveClass(/typing/, {
+      timeout: 6000,
+    });
+    await expect(page.locator('#stack [data-block]')).toHaveCSS('opacity', '1');
+    await expect(page.locator('#stack .out')).toHaveCSS('opacity', '1');
+    await expect(page.locator('#stack [data-cmd]')).toHaveText(
+      'cat stack.toml',
+    );
+  });
+
+  test('keeps the animation when the script loads normally', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveAttribute('data-typing', 'on');
+    await page.waitForTimeout(3500);
+    await expect(page.locator('html')).toHaveClass(/typing/);
+    await expect(page.locator('#stack [data-block]')).toHaveCSS('opacity', '0');
+  });
+});
+
 test.describe('without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 

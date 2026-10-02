@@ -30,6 +30,8 @@ export interface TypingEnv {
 
 export const typingClass = 'typing';
 
+const stateKey = 'typing';
+
 export const defaultOptions: TypingOptions = {
   baseMs: 28,
   outputPauseMs: 140,
@@ -210,17 +212,41 @@ export function observeOnce(
   targets.forEach((target) => observer.observe(target));
 }
 
+function giveUp(root: HTMLElement): false {
+  root.classList.remove(typingClass);
+  root.dataset[stateKey] = 'off';
+  return false;
+}
+
 export function initTyping(
   doc: Document,
   env: TypingEnv,
   schedule: Scheduler = (task, delayMs) => setTimeout(task, delayMs),
 ): boolean {
   const root = doc.documentElement;
-  if (!shouldAnimate(env) || env.IntersectionObserver === undefined) {
+  if (
+    !shouldAnimate(env) ||
+    env.IntersectionObserver === undefined ||
+    root.dataset[stateKey] === 'off'
+  ) {
     root.classList.remove(typingClass);
     return false;
   }
-  root.classList.add(typingClass);
+  try {
+    setUpTyping(doc, env.IntersectionObserver, schedule);
+  } catch {
+    return giveUp(root);
+  }
+  root.dataset[stateKey] = 'on';
+  return true;
+}
+
+function setUpTyping(
+  doc: Document,
+  Observer: ObserverCtor,
+  schedule: Scheduler,
+): void {
+  doc.documentElement.classList.add(typingClass);
 
   const runs = new WeakMap<Element, TerminalRun>();
   const started = new WeakSet<Element>();
@@ -238,7 +264,7 @@ export function initTyping(
       started.add(terminal);
       runs.set(terminal, animateTerminal(terminal, schedule));
     },
-    env.IntersectionObserver,
+    Observer,
     { threshold: 0.25, rootMargin: '0px 0px -10% 0px' },
   );
   doc.addEventListener('focusin', (event) => {
@@ -252,5 +278,4 @@ export function initTyping(
       run.finish();
     }
   });
-  return true;
 }
