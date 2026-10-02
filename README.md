@@ -34,7 +34,7 @@ All page text and data live in one file, `src/content/profile.ts`. Components ne
 | `links`          | LinkedIn, GitHub and email                                             |
 | `hero`           | The one-liner, the `[more]` label and the two lines at the top right   |
 | `about`          | The paragraphs and languages in the `[more]` dialog and the whoami     |
-| `badge`          | Text on the 3D badge (name, role, chips, corner detail, strap)         |
+| `badge`          | Text on the badge (name, role, chips, corner detail, strap)            |
 | `projects`       | Each project: title, summary, metrics, highlights, stack, ASCII sketch |
 | `experience`     | Work history, shown as a git log                                       |
 | `stackGroups`    | The stack window                                                       |
@@ -93,7 +93,14 @@ The page uses `header`, `main` and `footer` landmarks, a skip link as the first 
 
 ## How the 3D badge works
 
-The server-rendered page always contains a plain HTML and CSS badge (the placeholder, a gently swaying card). A small React island, `src/components/badge/Badge.tsx`, decides in the browser whether to upgrade it. The pure decision logic lives in `src/lib/badge/` and is fully unit tested: the badge is only upgraded with WebGL available and without reduced motion (`capability.ts`), never on a save-data or 2g connection, and on touch devices only after the hero has been visible for 1.5 seconds and the main thread is idle (`loadPolicy.ts`, `deferral.ts`). If all of that passes, `Scene.tsx` is loaded on demand. It draws the card faces to canvas textures, simulates the lanyard as a chain of Rapier physics joints through React Three Fiber, and fades in over the placeholder when ready. Any failure (no WebGL, lost context, load error) leaves the placeholder in place. The Rapier engine is WebAssembly; a small build plugin in `astro.config.mjs` serves it as its own `.wasm` file instead of the base64 copy inside the library, which makes the download smaller.
+The server-rendered page always contains a plain HTML and CSS badge (the placeholder card). A small React island, `src/components/badge/Badge.tsx`, decides in the browser which version to show. The pure decision logic lives in `src/lib/badge/` and is fully unit tested (`loadPolicy.ts`, `capability.ts`, `scrollTilt.ts`).
+
+- Below 860px wide, on any device (phone, tablet or a narrow desktop window), the page shows the static card without a strap, tilted 7 degrees. The tilt rotates with the scroll position (from 7 degrees at the top towards -12 degrees further down) and stops updating once the hero is well out of view. The 3D code is never downloaded.
+- At 860px and wider, the interactive 3D badge is loaded. `Scene.tsx` is fetched on demand once the browser is idle. It draws the card faces to canvas textures, simulates the lanyard as a chain of Rapier physics joints through React Three Fiber, and fades in over the placeholder when ready. It stops rendering while it is off screen or the tab is hidden.
+- Switching is live: resizing the window across 860px, or changing the reduced-motion setting, swaps between the two modes without a reload.
+- Fallbacks keep the static card: reduced motion (no animation at all), no WebGL, a save-data or 2g connection, a load error or a lost graphics context. At 860px and wider the static card hangs from its strap and sways gently, except under reduced motion.
+
+The Rapier engine is WebAssembly; a small build plugin in `astro.config.mjs` serves it as its own `.wasm` file instead of the base64 copy inside the library, which makes the download smaller.
 
 ## Deployment
 
