@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { links, mailto, ownerName, skipLink } from './site';
+import { links, mailto, ownerName, siteUrl, skipLink } from './site';
 
 describe('site config', () => {
   it('exposes the owner name', () => {
     expect(ownerName).toBe('Yiorgos Papadopoulos');
+  });
+
+  it('exposes the public site url on the owned domain', () => {
+    expect(siteUrl).toBe('https://yiorgospapadopoulos.dev');
   });
 
   it('exposes the profile links', () => {

@@ -1,6 +1,7 @@
 import react from '@astrojs/react';
 import { defineConfig } from 'astro/config';
 import { externalizeRapierWasm } from './src/lib/badge/rapierWasm.ts';
+import { siteUrl } from './src/lib/site.ts';
 
 // Serves the Rapier physics wasm as its own file instead of inlined base64.
 const rapierWasmAsset = {
@@ -20,6 +21,7 @@ const rapierWasmAsset = {
 };
 
 export default defineConfig({
+  site: siteUrl,
   output: 'static',
   integrations: [react()],
   devToolbar: { enabled: false },

@@ -1,5 +1,7 @@
 export const ownerName = 'Yiorgos Papadopoulos';
 
+export const siteUrl = 'https://yiorgospapadopoulos.dev';
+
 export const skipLink = {
   label: 'Skip to main content',
   target: 'main',

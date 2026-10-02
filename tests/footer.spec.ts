@@ -103,12 +103,23 @@ test.describe('metadata', () => {
       meta.description,
     );
     expect(await content('meta[property="og:type"]')).toBe('website');
-    expect(await content('meta[property="og:image"]')).toMatch(/\/og\.png$/);
+    expect(await content('meta[property="og:image"]')).toBe(
+      'https://yiorgospapadopoulos.dev/og.png',
+    );
+    expect(await content('meta[property="og:url"]')).toBe(
+      'https://yiorgospapadopoulos.dev/',
+    );
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://yiorgospapadopoulos.dev/',
+    );
     expect(await content('meta[name="twitter:card"]')).toBe(
       'summary_large_image',
     );
     expect(await content('meta[name="twitter:title"]')).toBe(meta.title);
-    expect(await content('meta[name="twitter:image"]')).toMatch(/\/og\.png$/);
+    expect(await content('meta[name="twitter:image"]')).toBe(
+      'https://yiorgospapadopoulos.dev/og.png',
+    );
     expect(await content('meta[name="theme-color"]')).toBeTruthy();
     await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
       'href',

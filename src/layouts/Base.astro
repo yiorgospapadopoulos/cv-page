@@ -19,6 +19,10 @@ const fontCss = fontFaceCss([
 ]);
 const imageUrl =
   Astro.site === undefined ? image : new URL(image, Astro.site).href;
+const pageUrl =
+  Astro.site === undefined
+    ? undefined
+    : new URL(Astro.url.pathname, Astro.site).href;
 ---
 
 <html lang="en">
@@ -37,7 +41,9 @@ const imageUrl =
       crossorigin
     />
     <style is:inline set:html={fontCss}></style>
+    {pageUrl && <link rel="canonical" href={pageUrl} />}
     <meta property="og:type" content="website" />
+    {pageUrl && <meta property="og:url" content={pageUrl} />}
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={imageUrl} />
