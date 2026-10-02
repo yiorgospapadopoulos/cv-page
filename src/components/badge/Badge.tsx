@@ -13,6 +13,7 @@ import {
   readBadgeEnv,
   wantsScrollTilt,
   wantsStaticBadge,
+  wideQuery,
 } from '../../lib/badge/loadPolicy';
 import { createScrollTilt } from '../../lib/badge/scrollTilt';
 import { computeStage, type Rect, type Stage } from '../../lib/badge/stage';
@@ -106,21 +107,30 @@ export default function Badge({ badge, prompt }: Props) {
   const [onScreen, setOnScreen] = useState(true);
   const [pageVisible, setPageVisible] = useState(true);
 
+  const mounted = useRef(false);
   const fail = useCallback(() => setFailed(true), []);
+  const lost = useCallback(() => {
+    if (mounted.current) setFailed(true);
+  }, []);
   const markReady = useCallback(() => setReady(true), []);
   const hasLayout = layout !== null;
   const bandWidth = layout?.bandWidth ?? 16;
 
   useEffect(() => {
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const queries = [
+      window.matchMedia('(prefers-reduced-motion: reduce)'),
+      window.matchMedia(wideQuery),
+    ];
     const update = () => {
       const env = readBadgeEnv(window, () => supportsWebGL(document));
       setEnabled(!wantsStaticBadge(env));
       setTilt(wantsScrollTilt(env));
     };
     update();
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
+    for (const query of queries) query.addEventListener('change', update);
+    return () => {
+      for (const query of queries) query.removeEventListener('change', update);
+    };
   }, []);
 
   useEffect(() => {
@@ -209,10 +219,14 @@ export default function Badge({ badge, prompt }: Props) {
   }, [shown]);
 
   useEffect(() => {
-    if (!enabled) setReady(false);
+    if (!enabled) {
+      setReady(false);
+      setLayout(null);
+    }
   }, [enabled]);
 
   const live = enabled && !failed && layout !== null;
+  mounted.current = live;
   const stage = layout?.stage;
   return (
     <div
@@ -240,7 +254,7 @@ export default function Badge({ badge, prompt }: Props) {
                 hero={hero}
                 active={onScreen && pageVisible}
                 onReady={markReady}
-                onLost={fail}
+                onLost={lost}
               />
             </Boundary>
           )}
