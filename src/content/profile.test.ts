@@ -15,7 +15,7 @@ describe('profile', () => {
     expect(profile.meta.description).toBe(
       'Yiorgos Papadopoulos is an ML & LLM Systems Engineer. I build AI that helps people, and the backends that make it reliable.',
     );
-    expect(profile.badge.role).toBe('ML & LLM Systems Engineer');
+    expect(profile.badge.role).toBe('ML & LLM Systems Engineer @ Zimmerman');
   });
 
   it('takes the owner name and links from the site config', () => {

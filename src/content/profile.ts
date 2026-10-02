@@ -37,7 +37,7 @@ export const profile: Profile = {
   },
   badge: {
     name: ownerName,
-    role,
+    role: 'ML & LLM Systems Engineer @ Zimmerman',
     line: 'MSc AI @ University of Thessaly',
     chips: ['AI/ML', 'Backend', 'LLMs'],
     pass: 'PASS #0x02 · ACCESS: ROOT',
