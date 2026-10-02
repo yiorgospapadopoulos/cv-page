@@ -63,8 +63,8 @@ describe('profile', () => {
       'thesis',
       'mammo',
       'model-pipeline',
-      'lead-gen',
       'narrative-engine',
+      'lead-gen',
     ]);
   });
 
@@ -74,8 +74,8 @@ describe('profile', () => {
     );
     expect(zimmerman.map((project) => project.slug)).toEqual([
       'model-pipeline',
-      'lead-gen',
       'narrative-engine',
+      'lead-gen',
     ]);
     for (const project of zimmerman) {
       expect(project.kind).toBe('case-study');
