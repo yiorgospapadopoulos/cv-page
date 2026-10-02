@@ -1,6 +1,16 @@
 import { expect, test, type Page } from '@playwright/test';
 import { profile } from '../src/content/profile';
-import { hasWebGL, isNarrow, noWebGL, staticWhenNarrow } from './support';
+import { revealAfterMs } from '../src/lib/badge/entrance';
+import {
+  badgeLoadSamples,
+  hasWebGL,
+  isNarrow,
+  noWebGL,
+  recordBadgeLoad,
+  sceneChunk,
+  staticWhenNarrow,
+  type LoadSample,
+} from './support';
 
 function collectErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -14,6 +24,8 @@ function collectErrors(page: Page): string[] {
 async function waitForBadge(page: Page) {
   test.skip(await isNarrow(page), staticWhenNarrow);
   test.skip(!(await hasWebGL(page)), noWebGL);
+  // Software WebGL is slow and the card first drops in before it rests.
+  test.setTimeout(60_000);
   await expect(page.locator('#badge-slot')).toHaveAttribute(
     'data-badge-3d',
     'ready',
@@ -415,8 +427,11 @@ test.describe('3d badge', () => {
     test.use({ reducedMotion: 'reduce' });
 
     test('keeps the placeholder and creates no canvas', async ({ page }) => {
+      await recordBadgeLoad(page);
       await page.goto('/');
       await page.waitForTimeout(1500);
+      const samples = await badgeLoadSamples(page);
+      expect(samples.every((s) => s.shown && s.load !== 'pending')).toBe(true);
       await expect(page.locator('#badge-slot canvas')).toHaveCount(0);
       await expect(page.locator('[data-badge]')).toBeVisible();
       await expect(page.locator('#badge-slot')).not.toHaveAttribute(
@@ -447,6 +462,13 @@ test.describe('3d badge', () => {
     await page.waitForTimeout(1500);
     await expect(page.locator('#badge-slot canvas')).toHaveCount(0);
     await expect(page.locator('[data-badge]')).toBeVisible();
+    await expect(page.locator('[data-badge]')).toHaveCSS('opacity', '1');
+    if (!(await isNarrow(page))) {
+      await expect(page.locator('html')).toHaveAttribute(
+        'data-badge-load',
+        'static',
+      );
+    }
     expect(errors).toEqual([]);
   });
 
@@ -474,10 +496,118 @@ test.describe('3d badge', () => {
     await page.goto('/');
     await page.waitForTimeout(4000);
     await expect(page.locator('[data-badge]')).toBeVisible();
+    await expect(page.locator('[data-badge]')).toHaveCSS('opacity', '1');
     await expect(page.locator('#badge-slot')).not.toHaveAttribute(
       'data-badge-3d',
     );
     expect(errors).toEqual([]);
+  });
+});
+
+function firstShown(samples: LoadSample[]): LoadSample | undefined {
+  return samples.find((s) => s.shown);
+}
+
+test.describe('badge load sequence', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test('drops the card in from above the view and swings it to rest', async ({
+    page,
+    browserName,
+    isMobile,
+  }) => {
+    chromiumDesktop(browserName, isMobile);
+    const errors = collectErrors(page);
+    await recordBadgeLoad(page);
+    await page.goto('/');
+    await waitForBadge(page);
+    const rest = await atRest(page);
+    const origin = await heroOrigin(page);
+    const restX = rest.x - origin.x;
+    const restY = rest.y - origin.y;
+
+    const samples = await badgeLoadSamples(page);
+    expect(samples.filter((s) => s.shown)).toEqual([]);
+    const moving = samples.filter((s) => !Number.isNaN(s.y));
+    expect(moving[0]!.y).toBeLessThan(0);
+    expect(moving[0]!.y).toBeLessThan(restY - 300);
+    const arrived = moving.findIndex((s) => s.y > restY - 20);
+    expect(arrived).toBeGreaterThan(0);
+    const landing = moving.slice(arrived);
+    expect(landing[0]!.t - moving[0]!.t).toBeLessThan(5000);
+    expect(Math.max(...landing.map((s) => s.y)) - restY).toBeLessThan(60);
+    expect(restY - Math.min(...landing.map((s) => s.y))).toBeLessThan(60);
+    const swing = landing.map((s) => s.x - restX);
+    expect(Math.max(...swing) - Math.min(...swing)).toBeGreaterThan(30);
+    expect(Math.max(...swing.map(Math.abs))).toBeLessThan(200);
+    expect(Math.abs(rest.yaw)).toBeLessThan(3);
+    expect(Math.abs(rest.pitch)).toBeLessThan(3);
+    expect(errors).toEqual([]);
+  });
+
+  test('reveals the static badge if the 3d scene never arrives', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await page.route(sceneChunk, () => {});
+    await recordBadgeLoad(page);
+    await page.goto('/');
+    test.skip(await isNarrow(page), staticWhenNarrow);
+    test.skip(!(await hasWebGL(page)), noWebGL);
+    await expect(page.locator('html')).toHaveAttribute(
+      'data-badge-load',
+      'static',
+      { timeout: revealAfterMs + 4000 },
+    );
+    await expect(page.locator('[data-badge]')).toHaveCSS('opacity', '1');
+    const samples = await badgeLoadSamples(page);
+    const shown = firstShown(samples);
+    expect(shown!.t).toBeGreaterThan(revealAfterMs - 500);
+    expect(samples.some((s) => s.opacity > 0 && s.opacity < 1)).toBe(true);
+    await expect(page.locator('#badge-slot canvas')).toHaveCount(0);
+  });
+
+  test('reveals the static badge when the 3d scene fails to download', async ({
+    page,
+  }) => {
+    await page.route(sceneChunk, (route) => route.abort());
+    await page.goto('/');
+    test.skip(await isNarrow(page), staticWhenNarrow);
+    test.skip(!(await hasWebGL(page)), noWebGL);
+    await expect(page.locator('html')).toHaveAttribute(
+      'data-badge-load',
+      'static',
+      { timeout: revealAfterMs + 2000 },
+    );
+    await expect(page.locator('[data-badge]')).toBeVisible();
+    await expect(page.locator('[data-badge]')).toHaveCSS('opacity', '1');
+    await expect(page.locator('#badge-slot canvas')).toHaveCount(0);
+  });
+
+  test('crossfades to a resting 3d badge that arrives after the reveal', async ({
+    page,
+    browserName,
+    isMobile,
+  }) => {
+    chromiumDesktop(browserName, isMobile);
+    test.setTimeout(60_000);
+    await page.route(/\/_astro\/Scene[.-]/, async (route) => {
+      await new Promise((done) => setTimeout(done, revealAfterMs + 1500));
+      await route.continue().catch(() => {});
+    });
+    await recordBadgeLoad(page);
+    await page.goto('/');
+    await waitForBadge(page);
+    await expect(page.locator('[data-badge]')).toBeHidden();
+    const rest = await atRest(page);
+    const origin = await heroOrigin(page);
+
+    const samples = await badgeLoadSamples(page);
+    const shown = firstShown(samples);
+    expect(shown!.t).toBeGreaterThan(revealAfterMs - 500);
+    expect(shown!.ready).toBe(false);
+    const first = samples.find((s) => !Number.isNaN(s.y))!;
+    expect(Math.abs(first.y - (rest.y - origin.y))).toBeLessThan(40);
   });
 });
 

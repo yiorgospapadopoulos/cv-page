@@ -1,7 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 import { profile } from '../src/content/profile';
 import { grabPadding } from '../src/lib/badge/grab';
-import { hasWebGL, isNarrow } from './support';
+import {
+  badgeLoadSamples,
+  hasWebGL,
+  isNarrow,
+  recordBadgeLoad,
+} from './support';
 
 const { hero, about } = profile;
 
@@ -246,14 +251,58 @@ test.describe('badge placeholder', () => {
     });
   });
 
+  test('stays hidden from the first paint until the 3d badge is ready', async ({
+    page,
+  }) => {
+    await recordBadgeLoad(page);
+    await page.goto('/');
+    test.skip(await isNarrow(page), 'Narrow viewports show the phone card');
+    test.skip(!(await hasWebGL(page)), 'WebGL is unavailable in this engine');
+    await expect(page.locator('#badge-slot')).toHaveAttribute(
+      'data-badge-3d',
+      'ready',
+      { timeout: 20_000 },
+    );
+    const samples = await badgeLoadSamples(page);
+    const before = samples.filter((s) => !s.ready);
+    expect(before.length).toBeGreaterThan(0);
+    expect(before[0]!.load).toBe('pending');
+    expect(before.filter((s) => s.shown)).toEqual([]);
+    await expect(page.locator('html')).toHaveAttribute(
+      'data-badge-load',
+      'ready',
+    );
+    await expect(page.locator('[data-badge]')).toBeHidden();
+  });
+
+  test('is visible from the first paint on narrow screens', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 600, height: 900 });
+    await recordBadgeLoad(page);
+    await page.goto('/');
+    await page.waitForTimeout(500);
+    const samples = await badgeLoadSamples(page);
+    expect(samples.length).toBeGreaterThan(0);
+    expect(samples.every((s) => s.shown && s.opacity === 1)).toBe(true);
+    await expect(page.locator('html')).not.toHaveAttribute(
+      'data-badge-load',
+      'pending',
+    );
+  });
+
   test('sways when the 3d badge is unavailable', async ({ page }) => {
     await page.addInitScript(disableWebGL);
     await page.goto('/');
     test.skip(await isNarrow(page), 'Narrow viewports tilt with scroll');
     await expect(page.locator('[data-badge]')).toBeVisible();
+    await expect(page.locator('[data-badge]')).toHaveCSS('opacity', '1');
     const running = await page
       .locator('[data-badge]')
-      .evaluate((el) => el.getAnimations().length);
+      .evaluate(
+        (el) =>
+          el.getAnimations().filter((a) => a instanceof CSSAnimation).length,
+      );
     expect(running).toBeGreaterThan(0);
   });
 });

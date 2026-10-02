@@ -35,6 +35,11 @@ test.describe('connection-aware badge', () => {
 
       expect(requests).toEqual([]);
       await expect(page.locator('[data-badge]')).toBeVisible();
+      await expect(page.locator('[data-badge]')).toHaveCSS('opacity', '1');
+      await expect(page.locator('html')).not.toHaveAttribute(
+        'data-badge-load',
+        'pending',
+      );
       await expect(page.locator('#badge-slot canvas')).toHaveCount(0);
       await expect(page.locator('#badge-slot')).not.toHaveAttribute(
         'data-badge-3d',
