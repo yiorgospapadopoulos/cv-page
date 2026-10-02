@@ -23,7 +23,7 @@ test.describe('footer', () => {
       "I'd love to hear from you. Connect on LinkedIn, see my code on GitHub, or send me an email.",
     );
     await expect(footerEl.getByText(footer.copyright)).toBeVisible();
-    await expect(footerEl.getByText(footer.builtWith)).toBeVisible();
+    await expect(footerEl.getByText(/built with/i)).toHaveCount(0);
   });
 
   test('has pill links with the right href, target, and rel', async ({
@@ -139,26 +139,18 @@ test.describe('layout', () => {
     });
   }
 
-  test('stacks the bottom line on mobile and spreads it on desktop', async ({
-    page,
-  }) => {
-    const [left, right] = [
-      page.locator('footer .base p').nth(0),
-      page.locator('footer .base p').nth(1),
-    ];
-    await page.setViewportSize({ width: 375, height: 900 });
-    const [mobileLeft, mobileRight] = [
-      await left.boundingBox(),
-      await right.boundingBox(),
-    ];
-    expect(mobileRight!.y).toBeGreaterThan(mobileLeft!.y);
-
-    await page.setViewportSize({ width: 1440, height: 900 });
-    const [wideLeft, wideRight] = [
-      await left.boundingBox(),
-      await right.boundingBox(),
-    ];
-    expect(wideRight!.y).toBeCloseTo(wideLeft!.y, 0);
-    expect(wideRight!.x).toBeGreaterThan(wideLeft!.x + wideLeft!.width);
-  });
+  for (const width of [375, 1440]) {
+    test(`left-aligns the copyright alone at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const copyright = page.locator('footer .base');
+      await expect(copyright).toHaveText(footer.copyright);
+      await expect(page.locator('footer .base ~ *')).toHaveCount(0);
+      const left = await page.locator('footer .inner').evaluate((el) => {
+        const { left } = el.getBoundingClientRect();
+        return left + parseFloat(getComputedStyle(el).paddingLeft);
+      });
+      const box = await copyright.boundingBox();
+      expect(box!.x).toBeCloseTo(left, 0);
+    });
+  }
 });

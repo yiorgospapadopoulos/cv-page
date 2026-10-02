@@ -74,7 +74,6 @@ export interface Footer {
   cvLabel: string;
   cvPath: string;
   copyright: string;
-  builtWith: string;
 }
 
 export interface TerminalCommand {

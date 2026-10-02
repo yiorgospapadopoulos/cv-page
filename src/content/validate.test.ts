@@ -77,7 +77,6 @@ const base: Profile = {
     cvLabel: 'Download CV',
     cvPath: '/cv.pdf',
     copyright: '© 2026 Some Name',
-    builtWith: 'Built with Astro',
   },
   commands: [{ name: 'help', description: 'list commands' }],
 };
@@ -125,12 +124,12 @@ describe('validateProfile', () => {
         { kind: 'link', link: 'github', label: 'Georgios' },
       ];
       p.footer.copyright = 'Call 691 234 5678';
-      p.footer.builtWith = '';
+      p.footer.cvLabel = '';
     });
     expect(problems).toEqual([
       'footer.segments[1].label: contains "Georgios"',
+      'footer.cvLabel: empty string',
       'footer.copyright: looks like a phone number',
-      'footer.builtWith: empty string',
     ]);
   });
 

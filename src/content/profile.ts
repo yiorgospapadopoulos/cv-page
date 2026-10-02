@@ -358,7 +358,6 @@ export const profile: Profile = {
     cvLabel: 'Download CV',
     cvPath: '/Yiorgos_Papadopoulos_CV.pdf',
     copyright: `© 2026 ${ownerName}`,
-    builtWith: 'Built with Astro, TypeScript, and React Three Fiber',
   },
   commands: [
     { name: 'help', description: 'list commands' },

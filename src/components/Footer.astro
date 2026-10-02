@@ -45,10 +45,7 @@ const parts = footerParts(profile);
         ></path>
       </svg>
     </a>
-    <div class="base">
-      <p>{footer.copyright}</p>
-      <p>{footer.builtWith}</p>
-    </div>
+    <p class="base">{footer.copyright}</p>
   </div>
 </footer>
 
@@ -134,9 +131,6 @@ const parts = footerParts(profile);
   }
 
   .base {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
     margin-top: clamp(56px, 9vw, 112px);
     padding-top: 20px;
     border-top: 1px solid var(--line);
@@ -151,11 +145,6 @@ const parts = footerParts(profile);
 
     .text {
       font-size: 22px;
-    }
-
-    .base {
-      flex-direction: row;
-      justify-content: space-between;
     }
   }
 
