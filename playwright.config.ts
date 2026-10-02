@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const port = 4321;
+const port = 4329;
 const chromiumLaunch = { args: ['--enable-unsafe-swiftshader'] };
 
 export default defineConfig({
@@ -28,7 +28,7 @@ export default defineConfig({
   webServer: {
     command: `npm run build && npm run preview -- --port ${port} --ignore-lock`,
     url: `http://localhost:${port}`,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });

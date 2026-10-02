@@ -70,14 +70,14 @@ npm run og
 
 ## Quality gates
 
-| Command                 | What it does                                                                                            |
-| ----------------------- | ------------------------------------------------------------------------------------------------------- |
-| `npm run check`         | Everything below in order: format check, lint, type check, dependency audit, unit tests, build          |
-| `npm run test:e2e`      | Builds the site and runs the browser tests on desktop Chromium, a Pixel 7 emulation, Firefox and WebKit |
-| `npm run test:coverage` | Unit tests with a 100% coverage requirement on `src/**/*.ts`                                            |
-| `npm run format`        | Rewrites files with Prettier                                                                            |
-| `npm run perf`          | Measures a production build (see below)                                                                 |
-| `npm run og`            | Regenerates the social preview image                                                                    |
+| Command                 | What it does                                                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run check`         | Everything below in order: format check, lint, type check, dependency audit, unit tests, build                                  |
+| `npm run test:e2e`      | Builds the site, serves it on port 4329 and runs the browser tests on desktop Chromium, a Pixel 7 emulation, Firefox and WebKit |
+| `npm run test:coverage` | Unit tests with a 100% coverage requirement on `src/**/*.ts`                                                                    |
+| `npm run format`        | Rewrites files with Prettier                                                                                                    |
+| `npm run perf`          | Measures a production build (see below)                                                                                         |
+| `npm run og`            | Regenerates the social preview image                                                                                            |
 
 Both `npm run check` and `npm run test:e2e` must pass before a change is committed. Unit tests (Vitest) sit next to their sources as `*.test.ts`. Browser tests (Playwright) are in `tests/`: layout, terminals, the prompt, the footer, the badge, accessibility scans with axe-core, keyboard and skip link checks, and performance assertions.
 
