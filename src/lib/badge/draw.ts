@@ -42,11 +42,11 @@ export function canvasMeasure(ctx: Ctx2D): Measure {
   };
 }
 
+// Fills every texel so filtering at the rounded edge never mixes in
+// transparent black.
 export function drawFace(ctx: Ctx2D, face: CardFace, borderWidth: number) {
-  ctx.beginPath();
-  ctx.roundRect(0, 0, face.width, face.height, face.radius);
   ctx.fillStyle = face.background;
-  ctx.fill();
+  ctx.fillRect(0, 0, face.width, face.height);
   if (face.border !== null) {
     const inset = borderWidth / 2;
     ctx.beginPath();

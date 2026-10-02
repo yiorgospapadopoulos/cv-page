@@ -64,13 +64,11 @@ const face: CardFace = {
 };
 
 describe('drawFace', () => {
-  it('paints the card, its border, then every op in order', () => {
+  it('fills the whole texture, then paints the border and every op in order', () => {
     const { ctx, calls } = recorder();
     drawFace(ctx, face, 2);
     expect(calls).toEqual([
-      'beginPath',
-      'roundRect 0 0 100 140 8',
-      'fill #ffffff',
+      'fillRect #ffffff 0 0 100 140',
       'beginPath',
       'roundRect 1 1 98 138 7',
       'stroke #eeeeee 2',
@@ -84,11 +82,7 @@ describe('drawFace', () => {
   it('skips the border when there is none', () => {
     const { ctx, calls } = recorder();
     drawFace(ctx, { ...face, border: null, ops: [] }, 2);
-    expect(calls).toEqual([
-      'beginPath',
-      'roundRect 0 0 100 140 8',
-      'fill #ffffff',
-    ]);
+    expect(calls).toEqual(['fillRect #ffffff 0 0 100 140']);
   });
 });
 
