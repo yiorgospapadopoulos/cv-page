@@ -24,5 +24,21 @@ export default defineConfig({
   integrations: [react()],
   devToolbar: { enabled: false },
   build: { inlineStylesheets: 'always' },
-  vite: { plugins: [rapierWasmAsset] },
+  vite: {
+    plugins: [rapierWasmAsset],
+    // Pre-bundled together so a stale dev cache cannot mix React runtimes.
+    optimizeDeps: {
+      include: [
+        'react',
+        'react-dom',
+        'react/jsx-runtime',
+        'react/jsx-dev-runtime',
+        'three',
+        '@react-three/fiber',
+        '@react-three/drei',
+        '@react-three/rapier',
+        'meshline',
+      ],
+    },
+  },
 });
