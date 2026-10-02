@@ -1,8 +1,11 @@
 import { Environment, Lightformer } from '@react-three/drei';
-import { Canvas } from '@react-three/fiber';
+import {
+  Canvas,
+  events as pointerEvents,
+  type RootState,
+} from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
-import { Suspense, useEffect, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import { Suspense, useRef } from 'react';
 import type { Badge } from '../../content/types';
 import { layoutCardBack, layoutCardFront } from '../../lib/badge/cardLayout';
 import {
@@ -12,8 +15,9 @@ import {
   strapTile,
   type Ctx2D,
 } from '../../lib/badge/draw';
-import { canvasToWorld, type Stage } from '../../lib/badge/stage';
-import Lanyard, { type BadgeAssets, type DragState } from './Lanyard';
+import { physics } from '../../lib/badge/rope';
+import { clientToNdc, type Stage } from '../../lib/badge/stage';
+import Lanyard, { type BadgeAssets } from './Lanyard';
 
 const textureScale = 4;
 
@@ -69,93 +73,39 @@ export async function prepareAssets(
 interface Props {
   stage: Stage;
   assets: BadgeAssets;
-  bandWidth: number;
+  hero: HTMLElement;
   active: boolean;
   onReady: () => void;
   onLost: () => void;
 }
 
-const tapTime = 250;
-const tapDistance = 6;
+// The canvas ignores the pointer; the hero forwards events so the card is
+// hit by raycasting while the text underneath stays usable.
+const heroEvents: typeof pointerEvents = (store) => {
+  const base = pointerEvents(store);
+  return {
+    ...base,
+    compute(event: MouseEvent, state: RootState) {
+      const target = state.events.connected as HTMLElement;
+      const [x, y] = clientToNdc(
+        [event.clientX, event.clientY],
+        target.getBoundingClientRect(),
+      );
+      state.pointer.set(x, y);
+      state.raycaster.setFromCamera(state.pointer, state.camera);
+    },
+  };
+};
 
 export default function Scene({
   stage,
   assets,
-  bandWidth,
+  hero,
   active,
   onReady,
   onLost,
 }: Props) {
   const hit = useRef<HTMLDivElement>(null);
-  const drag = useRef<DragState>({
-    active: false,
-    pointer: [0, 0],
-    offset: [0, 0],
-    spin: false,
-    grab: false,
-  });
-  const press = useRef({ x: 0, y: 0, time: 0 });
-  const [dragging, setDragging] = useState(false);
-  const invalidateRef = useRef<() => void>(() => {});
-
-  useEffect(() => {
-    if (active) invalidateRef.current();
-  }, [active]);
-
-  useEffect(() => {
-    if (!dragging) return;
-    const previous = document.body.style.cursor;
-    document.body.style.cursor = 'grabbing';
-    return () => {
-      document.body.style.cursor = previous;
-    };
-  }, [dragging]);
-
-  const toWorld = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const box = event.currentTarget.parentElement!.getBoundingClientRect();
-    return canvasToWorld(
-      stage,
-      event.clientX - box.left,
-      event.clientY - box.top,
-    );
-  };
-
-  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    press.current = {
-      x: event.clientX,
-      y: event.clientY,
-      time: performance.now(),
-    };
-    drag.current.pointer = toWorld(event);
-    drag.current.grab = true;
-    drag.current.active = true;
-    setDragging(true);
-    invalidateRef.current();
-  };
-
-  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!drag.current.active) return;
-    drag.current.pointer = toWorld(event);
-    invalidateRef.current();
-  };
-
-  const release = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!drag.current.active) return;
-    const { x, y, time } = press.current;
-    const tap =
-      event.type === 'pointerup' &&
-      performance.now() - time < tapTime &&
-      Math.hypot(event.clientX - x, event.clientY - y) < tapDistance;
-    drag.current.active = false;
-    drag.current.spin = tap;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-    setDragging(false);
-    invalidateRef.current();
-  };
 
   return (
     <>
@@ -163,30 +113,36 @@ export default function Scene({
         frameloop={active ? 'demand' : 'never'}
         dpr={[1, 2]}
         flat
-        gl={{ alpha: true, antialias: true }}
+        gl={{ alpha: true, antialias: true, premultipliedAlpha: true }}
         camera={{
           position: [0, 0, stage.cameraZ],
           fov: stage.fov,
           near: 1,
           far: 40,
         }}
+        eventSource={hero}
+        events={heroEvents}
         style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
         onCreated={(state) => {
-          invalidateRef.current = () => state.invalidate();
           state.gl.domElement.addEventListener('webglcontextlost', onLost);
         }}
       >
         <ambientLight intensity={2.6} />
         <Suspense fallback={null}>
-          <Physics gravity={[0, -32, 0]} timeStep={1 / 60} interpolate>
+          <Physics
+            gravity={[0, physics.gravity, 0]}
+            timeStep={physics.timeStep}
+            numSolverIterations={physics.solverIterations}
+            updatePriority={-1}
+            interpolate
+          >
             <Lanyard
-              key={`${stage.rect.width}x${stage.rect.height}:${stage.anchor.join(',')}:${stage.ropeLength}`}
+              key={`${stage.width}x${stage.height}:${stage.anchor.join(',')}:${stage.ropeLength}`}
               stage={stage}
               assets={assets}
-              bandWidth={bandWidth}
-              dragging={dragging}
-              drag={drag}
+              hero={hero}
               hit={hit}
+              active={active}
               onReady={onReady}
             />
           </Physics>
@@ -218,16 +174,7 @@ export default function Scene({
           </Environment>
         </Suspense>
       </Canvas>
-      <div
-        ref={hit}
-        className="badge-hit"
-        data-dragging={dragging || undefined}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={release}
-        onPointerCancel={release}
-        onLostPointerCapture={release}
-      />
+      <div ref={hit} className="badge-hit" />
     </>
   );
 }

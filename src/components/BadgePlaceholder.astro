@@ -35,7 +35,7 @@ const nameLines = badge.name.split(' ');
     position: absolute;
     top: 0;
     left: 54%;
-    z-index: 2;
+    z-index: 4;
     width: 0;
     pointer-events: none;
   }
@@ -75,8 +75,7 @@ const nameLines = badge.name.split(' ');
     opacity: 1;
   }
 
-  .badge-slot :global(.badge-frame),
-  .badge-slot :global(.badge-stub) {
+  .badge-slot :global(.badge-frame) {
     position: absolute;
   }
 
@@ -90,11 +89,9 @@ const nameLines = badge.name.split(' ');
     left: 0;
     pointer-events: auto;
     touch-action: none;
-    cursor: grab;
-  }
-
-  .badge-slot :global(.badge-hit[data-dragging]) {
-    cursor: grabbing;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .strap {

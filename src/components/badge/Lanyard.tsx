@@ -1,18 +1,40 @@
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import {
   BallCollider,
   CuboidCollider,
   RigidBody,
+  interactionGroups,
+  useBeforePhysicsStep,
+  useRapier,
   useRopeJoint,
   useSphericalJoint,
   type RapierRigidBody,
 } from '@react-three/rapier';
-import { MeshLineGeometry, MeshLineMaterial } from 'meshline';
-import { useEffect, useMemo, useRef, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import * as THREE from 'three';
-import { cardPalette } from '../../lib/badge/cardLayout';
-import { clampDragTarget, type Stage } from '../../lib/badge/stage';
-import { strapRepeat } from '../../lib/badge/strap';
+import {
+  grabAnchor,
+  grabPadding,
+  isTap,
+  limitSpeed,
+  screenBounds,
+  tiltDegrees,
+} from '../../lib/badge/grab';
+import {
+  physics,
+  ribbon,
+  ribbonIndices,
+  ropeLayout,
+  ropeSegments,
+  strapCoordinates,
+} from '../../lib/badge/rope';
+import {
+  clampToFrustum,
+  screenToPlane,
+  worldToScreen,
+  type Stage,
+  type Vec3,
+} from '../../lib/badge/stage';
 
 export interface BadgeAssets {
   front: HTMLCanvasElement;
@@ -21,53 +43,74 @@ export interface BadgeAssets {
   strapLength: number;
 }
 
-export interface DragState {
-  active: boolean;
-  pointer: [number, number];
-  offset: [number, number];
-  spin: boolean;
-  grab: boolean;
-}
-
 interface Props {
   stage: Stage;
   assets: BadgeAssets;
-  bandWidth: number;
-  dragging: boolean;
-  drag: RefObject<DragState>;
+  hero: HTMLElement;
   hit: RefObject<HTMLDivElement | null>;
+  active: boolean;
   onReady: () => void;
 }
 
+type World = ReturnType<typeof useRapier>['world'];
+
+interface Drag {
+  joint: ReturnType<World['createImpulseJoint']>;
+  pointerId: number;
+  target: [number, number];
+  press: { x: number; y: number; time: number };
+}
+
+type BodyRef = RefObject<RapierRigidBody | null>;
+
+const thickness = 0.035;
+const divisions = 16;
+const noCollisions = interactionGroups(0, []);
+
 const segmentProps = {
+  type: 'dynamic',
   canSleep: true,
   colliders: false,
-  angularDamping: 2,
-  linearDamping: 2,
+  linearDamping: physics.segmentDamping,
+  angularDamping: physics.segmentDamping,
+  enabledTranslations: [true, true, false] as [boolean, boolean, boolean],
 } as const;
 
-const thickness = 0.02;
-const restSpeed = 0.02;
-const restFrames = 45;
+function RopeLink({
+  a,
+  b,
+  length,
+}: {
+  a: BodyRef;
+  b: BodyRef;
+  length: number;
+}) {
+  useRopeJoint(
+    a as RefObject<RapierRigidBody>,
+    b as RefObject<RapierRigidBody>,
+    [[0, 0, 0], [0, 0, 0], length],
+  );
+  return null;
+}
 
 function roundedRect(width: number, height: number, radius: number) {
   const shape = new THREE.Shape();
-  const x = -width / 2;
-  const y = -height / 2;
-  shape.moveTo(x + radius, y);
-  shape.lineTo(x + width - radius, y);
-  shape.quadraticCurveTo(x + width, y, x + width, y + radius);
-  shape.lineTo(x + width, y + height - radius);
-  shape.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  shape.lineTo(x + radius, y + height);
-  shape.quadraticCurveTo(x, y + height, x, y + height - radius);
-  shape.lineTo(x, y + radius);
-  shape.quadraticCurveTo(x, y, x + radius, y);
+  const x = width / 2;
+  const y = height / 2;
+  shape.moveTo(-x + radius, -y);
+  shape.lineTo(x - radius, -y);
+  shape.absarc(x - radius, -y + radius, radius, -Math.PI / 2, 0, false);
+  shape.lineTo(x, y - radius);
+  shape.absarc(x - radius, y - radius, radius, 0, Math.PI / 2, false);
+  shape.lineTo(-x + radius, y);
+  shape.absarc(-x + radius, y - radius, radius, Math.PI / 2, Math.PI, false);
+  shape.lineTo(-x, -y + radius);
+  shape.absarc(-x + radius, -y + radius, radius, Math.PI, Math.PI * 1.5, false);
   return shape;
 }
 
 function faceGeometry(shape: THREE.Shape, width: number, height: number) {
-  const geometry = new THREE.ShapeGeometry(shape, 12);
+  const geometry = new THREE.ShapeGeometry(shape, 16);
   const position = geometry.attributes.position!;
   const uv = geometry.attributes.uv!;
   for (let i = 0; i < position.count; i++) {
@@ -84,6 +127,9 @@ function canvasTexture(canvas: HTMLCanvasElement, anisotropy: number) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = anisotropy;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
   return texture;
 }
 
@@ -96,32 +142,44 @@ function speed(body: RapierRigidBody): number {
 export default function Lanyard({
   stage,
   assets,
-  bandWidth,
-  dragging,
-  drag,
+  hero,
   hit,
+  active,
   onReady,
 }: Props) {
-  const fixed = useRef<RapierRigidBody>(null!);
-  const j1 = useRef<RapierRigidBody>(null!);
-  const j2 = useRef<RapierRigidBody>(null!);
-  const j3 = useRef<RapierRigidBody>(null!);
-  const card = useRef<RapierRigidBody>(null!);
+  const { world, rapier } = useRapier();
+  const { gl, camera, clock, invalidate } = useThree();
+  const fixed = useRef<RapierRigidBody>(null);
+  const card = useRef<RapierRigidBody>(null);
+  const hand = useRef<RapierRigidBody>(null);
+  const links = useMemo(
+    () =>
+      Array.from({ length: ropeSegments }, () => ({
+        body: { current: null } as RefObject<RapierRigidBody | null>,
+        marker: { current: null } as RefObject<THREE.Group | null>,
+      })),
+    [],
+  );
   const cardGroup = useRef<THREE.Group>(null!);
-  const { gl, camera, size, invalidate } = useThree();
+  const drag = useRef<Drag | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
-  const [ax, ay] = stage.anchor;
-  const segment = stage.ropeLength / 3;
   const { width: cw, height: ch } = stage.card;
-  const jointY = ch / 2 + stage.clipGap;
+  const clipTop = stage.clipGap;
+  const jointY = ch / 2 + clipTop;
+  const layout = ropeLayout(stage.anchor, stage.ropeLength, jointY);
+  const [ax, ay] = stage.anchor;
+  const [cx, cy] = layout.card;
 
-  useRopeJoint(fixed, j1, [[0, 0, 0], [0, 0, 0], segment]);
-  useRopeJoint(j1, j2, [[0, 0, 0], [0, 0, 0], segment]);
-  useRopeJoint(j2, j3, [[0, 0, 0], [0, 0, 0], segment]);
-  useSphericalJoint(j3, card, [
-    [0, 0, 0],
-    [0, jointY, 0],
-  ]);
+  useSphericalJoint(
+    links[ropeSegments - 1]!.body as RefObject<RapierRigidBody>,
+    card as RefObject<RapierRigidBody>,
+    [
+      [0, 0, 0],
+      [0, jointY, 0],
+    ],
+  );
 
   const scene = useMemo(() => {
     const anisotropy = gl.capabilities.getMaxAnisotropy();
@@ -130,160 +188,292 @@ export default function Lanyard({
     const edge = new THREE.ExtrudeGeometry(shape, {
       depth: thickness,
       bevelEnabled: false,
-      curveSegments: 12,
+      curveSegments: 16,
     });
     edge.translate(0, 0, -thickness / 2);
+    const pad = grabPadding / stage.pxPerUnit;
+    const target = new THREE.PlaneGeometry(
+      cw + 2 * pad,
+      ch + clipTop + 2 * pad,
+    );
+    target.translate(0, clipTop / 2, 0);
     const strap = canvasTexture(assets.strap, anisotropy);
     strap.wrapS = THREE.RepeatWrapping;
     strap.wrapT = THREE.ClampToEdgeWrapping;
-    strap.flipY = false;
-    const band = new MeshLineMaterial({
-      color: '#ffffff',
-      map: strap,
-      useMap: 1,
-      lineWidth: 1,
-      repeat: new THREE.Vector2(
-        strapRepeat(stage.ropeLength * stage.pxPerUnit, assets.strapLength),
-        1,
-      ),
-      resolution: new THREE.Vector2(1, 1),
-    });
-    band.depthTest = false;
-    band.transparent = false;
+    const count = ropeSegments * divisions + 1;
+    const band = new THREE.BufferGeometry();
+    band.setAttribute(
+      'position',
+      new THREE.BufferAttribute(new Float32Array(count * 6), 3),
+    );
+    band.setAttribute(
+      'uv',
+      new THREE.BufferAttribute(new Float32Array(count * 4), 2),
+    );
+    band.setIndex(new THREE.BufferAttribute(ribbonIndices(count), 1));
     return {
       face,
       edge,
+      target,
       front: canvasTexture(assets.front, anisotropy),
       back: canvasTexture(assets.back, anisotropy),
       strap,
-      bandGeometry: new MeshLineGeometry(),
       band,
+      u: strapCoordinates(
+        ropeSegments,
+        divisions,
+        layout.segment * stage.pxPerUnit,
+        assets.strapLength,
+      ),
     };
-  }, [gl, assets, cw, ch, stage.ropeLength, stage.pxPerUnit]);
+  }, [gl, assets, cw, ch, clipTop, stage.pxPerUnit, layout.segment]);
 
   useEffect(
     () => () => {
-      scene.face.dispose();
-      scene.edge.dispose();
-      scene.front.dispose();
-      scene.back.dispose();
-      scene.strap.dispose();
-      scene.bandGeometry.dispose();
-      scene.band.dispose();
+      for (const item of [
+        scene.face,
+        scene.edge,
+        scene.target,
+        scene.front,
+        scene.back,
+        scene.strap,
+        scene.band,
+      ]) {
+        item.dispose();
+      }
     },
     [scene],
   );
 
   useEffect(() => {
-    scene.band.lineWidth = (bandWidth * 2 * stage.cameraZ) / size.height;
-    scene.band.resolution.set(size.width, size.height);
     if (camera instanceof THREE.PerspectiveCamera) {
       camera.fov = stage.fov;
       camera.position.set(0, 0, stage.cameraZ);
       camera.updateProjectionMatrix();
     }
     invalidate();
-  }, [scene, bandWidth, stage, size, camera, invalidate]);
+  }, [stage, camera, invalidate]);
 
   const work = useMemo(
     () => ({
       curve: new THREE.CatmullRomCurve3(
-        [0, 1, 2, 3].map(() => new THREE.Vector3()),
+        Array.from({ length: ropeSegments + 1 }, () => new THREE.Vector3()),
         false,
-        'chordal',
+        'centripetal',
       ),
-      lerped: [new THREE.Vector3(), new THREE.Vector3()],
-      seeded: false,
-      corner: new THREE.Vector3(),
+      v: new THREE.Vector3(),
+      q: new THREE.Quaternion(),
       frames: 0,
       still: 0,
-      ready: false,
       nudged: false,
+      ready: false,
     }),
     [],
   );
 
-  useFrame((state, delta) => {
-    const bodies = [fixed, j1, j2, j3, card].map((ref) => ref.current);
-    if (bodies.some((body) => body === null)) return;
-    const [, b1, b2, b3, c] = bodies as RapierRigidBody[];
+  const wake = () => {
+    if (work.still >= physics.restFrames) clock.getDelta();
+    work.still = 0;
+    invalidate();
+  };
+
+  useEffect(() => {
+    if (active) wake();
+  }, [active]);
+
+  const bodies = () =>
+    [fixed, ...links.map((l) => l.body), card, hand].map((r) => r.current);
+
+  const handTarget = (clientX: number, clientY: number): [number, number] => {
+    const rect = hero.getBoundingClientRect();
+    const [x, y] = screenToPlane(stage, [
+      clientX - rect.left,
+      clientY - rect.top,
+    ]);
+    return clampToFrustum(stage, [x, y], physics.frustumMargin);
+  };
+
+  const release = (event?: PointerEvent) => {
     const d = drag.current;
+    if (d === null) return;
+    if (event && event.pointerId !== d.pointerId) return;
+    drag.current = null;
+    if (d.joint.isValid()) world.removeImpulseJoint(d.joint, true);
+    const c = card.current;
+    if (c !== null) {
+      const tap =
+        event?.type === 'pointerup' &&
+        isTap(d.press, {
+          x: event.clientX,
+          y: event.clientY,
+          time: performance.now(),
+        });
+      if (tap) c.setAngvel({ x: 0, y: physics.flipSpin, z: 0 }, true);
+      else c.setLinvel(limitSpeed(c.linvel(), physics.maxSpeed), true);
+    }
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    setDragging(false);
+    wake();
+  };
 
-    if (dragging && d.active) {
-      if (d.grab) {
-        const t = c.translation();
-        const [px, py] = d.pointer;
-        d.offset = [px - t.x, py - t.y];
-        d.grab = false;
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (event: PointerEvent) => {
+      const d = drag.current;
+      if (d === null || event.pointerId !== d.pointerId) return;
+      d.target = handTarget(event.clientX, event.clientY);
+      wake();
+    };
+    const onEnd = (event: PointerEvent) => release(event);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onEnd);
+    window.addEventListener('pointercancel', onEnd);
+    hero.addEventListener('lostpointercapture', onEnd);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onEnd);
+      window.removeEventListener('pointercancel', onEnd);
+      hero.removeEventListener('lostpointercapture', onEnd);
+    };
+  });
+
+  useEffect(() => {
+    hero.style.cursor = dragging ? 'grabbing' : hovered ? 'grab' : '';
+  }, [hero, dragging, hovered]);
+
+  useEffect(
+    () => () => {
+      hero.style.cursor = '';
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      const d = drag.current;
+      if (d !== null && d.joint.isValid()) {
+        world.removeImpulseJoint(d.joint, false);
       }
-      for (const body of bodies) body!.wakeUp();
-      const [tx, ty] = clampDragTarget(stage, [
-        d.pointer[0] - d.offset[0],
-        d.pointer[1] - d.offset[1],
-      ]);
-      c.setNextKinematicTranslation({ x: tx, y: ty, z: 0 });
-    } else if (d.spin && c.isDynamic()) {
-      d.spin = false;
-      c.setAngvel({ x: 0, y: 14, z: 0 }, true);
-    }
+      drag.current = null;
+    },
+    [hero, world],
+  );
 
-    if (!work.nudged && c.isDynamic()) {
+  const onPointerDown = (event: ThreeEvent<PointerEvent>) => {
+    const native = event.nativeEvent;
+    const c = card.current;
+    const h = hand.current;
+    if (native.button !== 0 || drag.current !== null || !c || !h) return;
+    event.stopPropagation();
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+    window.getSelection()?.removeAllRanges();
+    const local = cardGroup.current.worldToLocal(work.v.copy(event.point));
+    const [gx, gy] = grabAnchor(
+      [local.x, local.y, local.z],
+      stage.card,
+      clipTop,
+    );
+    const grip = work.v.set(gx, gy, 0);
+    cardGroup.current.localToWorld(grip);
+    h.setTranslation({ x: grip.x, y: grip.y, z: 0 }, true);
+    const target = handTarget(native.clientX, native.clientY);
+    h.setNextKinematicTranslation({ x: target[0], y: target[1], z: 0 });
+    const joint = world.createImpulseJoint(
+      rapier.JointData.spring(
+        0,
+        physics.handStiffness,
+        physics.handDamping,
+        { x: 0, y: 0, z: 0 },
+        { x: gx, y: gy, z: 0 },
+      ),
+      h,
+      c,
+      true,
+    );
+    for (const b of bodies()) b?.wakeUp();
+    drag.current = {
+      joint,
+      pointerId: native.pointerId,
+      target,
+      press: { x: native.clientX, y: native.clientY, time: performance.now() },
+    };
+    try {
+      hero.setPointerCapture(native.pointerId);
+    } catch {
+      // Capture is a convenience; window listeners still end the drag.
+    }
+    setDragging(true);
+    wake();
+  };
+
+  useBeforePhysicsStep(() => {
+    const c = card.current;
+    const h = hand.current;
+    if (!c || !h) return;
+    const d = drag.current;
+    if (d !== null) {
+      h.setNextKinematicTranslation({ x: d.target[0], y: d.target[1], z: 0 });
+      for (const b of bodies()) b?.wakeUp();
+    }
+    if (!c.isSleeping()) {
+      const ang = c.angvel();
+      const rot = c.rotation();
+      c.setAngvel(
+        { x: ang.x, y: ang.y - rot.y * physics.facing, z: ang.z },
+        false,
+      );
+    }
+    if (!work.nudged) {
       work.nudged = true;
-      c.setLinvel({ x: 1.4, y: 0, z: 0 }, true);
+      c.setLinvel({ x: physics.nudge, y: 0, z: 0 }, true);
     }
+  });
 
-    const [l1, l2] = work.lerped as [THREE.Vector3, THREE.Vector3];
-    if (!work.seeded) {
-      l1.copy(b1.translation());
-      l2.copy(b2.translation());
-      work.seeded = true;
-    }
-    for (const [lerped, body] of [
-      [l1, b1],
-      [l2, b2],
-    ] as const) {
-      const distance = lerped.distanceTo(body.translation());
-      const clamped = Math.max(0.1, Math.min(1, distance));
-      lerped.lerp(body.translation(), Math.min(1, delta * (10 + clamped * 40)));
-    }
+  useFrame((state) => {
+    const all = bodies();
+    if (all.some((b) => b === null)) return;
+    const group = cardGroup.current;
+    group.updateWorldMatrix(true, false);
+
     const points = work.curve.points as THREE.Vector3[];
-    points[0]!.copy(fixed.current.translation());
-    points[1]!.copy(l1);
-    points[2]!.copy(l2);
-    points[3]!.copy(b3.translation());
-    scene.bandGeometry.setPoints(work.curve.getPoints(32));
-
-    const ang = c.angvel();
-    const rot = c.rotation();
-    c.setAngvel({ x: ang.x, y: ang.y - rot.y * 0.25, z: ang.z }, false);
+    points[0]!.set(ax, ay, 0);
+    for (let i = 0; i < ropeSegments - 1; i++) {
+      links[i]!.marker.current?.getWorldPosition(points[i + 1]!);
+    }
+    group.localToWorld(points[ropeSegments]!.set(0, jointY, 0));
+    const curve = work.curve
+      .getPoints(ropeSegments * divisions)
+      .map((p): Vec3 => [p.x, p.y, thickness / 2 + 0.004]);
+    const { positions, uvs } = ribbon(curve, stage.bandWidth / 2, scene.u);
+    const position = scene.band.attributes.position as THREE.BufferAttribute;
+    const uv = scene.band.attributes.uv as THREE.BufferAttribute;
+    (position.array as Float32Array).set(positions);
+    (uv.array as Float32Array).set(uvs);
+    position.needsUpdate = true;
+    uv.needsUpdate = true;
 
     const el = hit.current;
     if (el !== null) {
-      cardGroup.current.updateWorldMatrix(true, false);
-      let minX = Infinity;
-      let minY = Infinity;
-      let maxX = -Infinity;
-      let maxY = -Infinity;
-      for (const [x, y] of [
-        [-cw / 2, -ch / 2],
-        [cw / 2, -ch / 2],
-        [-cw / 2, jointY],
-        [cw / 2, jointY],
-      ] as const) {
-        const p = work.corner
-          .set(x, y, 0)
-          .applyMatrix4(cardGroup.current.matrixWorld)
-          .project(state.camera);
-        const sx = ((p.x + 1) / 2) * size.width;
-        const sy = ((1 - p.y) / 2) * size.height;
-        minX = Math.min(minX, sx);
-        maxX = Math.max(maxX, sx);
-        minY = Math.min(minY, sy);
-        maxY = Math.max(maxY, sy);
-      }
-      el.style.transform = `translate(${minX}px, ${minY}px)`;
-      el.style.width = `${maxX - minX}px`;
-      el.style.height = `${maxY - minY}px`;
+      const corners = (
+        [
+          [-cw / 2, -ch / 2],
+          [cw / 2, -ch / 2],
+          [-cw / 2, ch / 2 + clipTop],
+          [cw / 2, ch / 2 + clipTop],
+        ] as const
+      ).map(([x, y]) => {
+        const p = group.localToWorld(work.v.set(x, y, 0));
+        return worldToScreen(stage, [p.x, p.y, p.z]);
+      });
+      const box = screenBounds(corners, grabPadding);
+      el.style.transform = `translate(${box.left}px, ${box.top}px)`;
+      el.style.width = `${box.width}px`;
+      el.style.height = `${box.height}px`;
+      const centre = group.getWorldPosition(work.v);
+      const [sx, sy] = worldToScreen(stage, [centre.x, centre.y, centre.z]);
+      el.dataset.x = sx.toFixed(1);
+      el.dataset.y = sy.toFixed(1);
+      el.dataset.angle = tiltDegrees(group.getWorldQuaternion(work.q)).toFixed(
+        1,
+      );
     }
 
     work.frames += 1;
@@ -291,57 +481,84 @@ export default function Lanyard({
       work.ready = true;
       onReady();
     }
-
-    const moving = dragging || bodies.some((body) => speed(body!) > restSpeed);
+    const moving =
+      drag.current !== null ||
+      all.some((b) => b!.isDynamic() && speed(b!) > physics.restSpeed);
     work.still = moving ? 0 : work.still + 1;
-    if (work.still < restFrames) state.invalidate();
+    if (work.still < physics.restFrames) state.invalidate();
   });
 
   return (
     <>
       <RigidBody
         ref={fixed}
-        {...segmentProps}
         type="fixed"
+        colliders={false}
         position={[ax, ay, 0]}
       />
-      <RigidBody ref={j1} {...segmentProps} position={[ax, ay - segment, 0]}>
-        <BallCollider args={[0.08]} />
-      </RigidBody>
+      {links.map((link, i) => {
+        const [x, y] = layout.joints[i]!;
+        return (
+          <RigidBody
+            key={i}
+            ref={link.body}
+            {...segmentProps}
+            position={[x, y, 0]}
+          >
+            <BallCollider
+              args={[0.05]}
+              mass={physics.segmentMass}
+              collisionGroups={noCollisions}
+            />
+            <group ref={link.marker} />
+          </RigidBody>
+        );
+      })}
+      {links.map((link, i) => (
+        <RopeLink
+          key={i}
+          a={i === 0 ? fixed : links[i - 1]!.body}
+          b={link.body}
+          length={layout.segment}
+        />
+      ))}
       <RigidBody
-        ref={j2}
-        {...segmentProps}
-        position={[ax, ay - 2 * segment, 0]}
-      >
-        <BallCollider args={[0.08]} />
-      </RigidBody>
-      <RigidBody
-        ref={j3}
-        {...segmentProps}
-        position={[ax, ay - 3 * segment, 0]}
-      >
-        <BallCollider args={[0.08]} />
-      </RigidBody>
+        ref={hand}
+        type="kinematicPosition"
+        colliders={false}
+        position={[cx, cy, 0]}
+      />
       <RigidBody
         ref={card}
-        {...segmentProps}
-        type={dragging ? 'kinematicPosition' : 'dynamic'}
-        position={[ax, ay - 3 * segment - jointY, 0]}
+        type="dynamic"
+        canSleep
+        colliders={false}
+        linearDamping={physics.cardLinearDamping}
+        angularDamping={physics.cardAngularDamping}
+        enabledTranslations={[true, true, false]}
+        position={[cx, cy, 0]}
       >
-        <CuboidCollider args={[cw / 2, ch / 2, thickness / 2]} />
+        <CuboidCollider
+          args={[cw / 2, ch / 2, thickness / 2]}
+          mass={physics.cardMass}
+          collisionGroups={noCollisions}
+        />
         <group ref={cardGroup}>
-          <mesh geometry={scene.face} position={[0, 0, thickness / 2 + 1e-4]}>
+          <mesh geometry={scene.face} position={[0, 0, thickness / 2]}>
             <meshPhysicalMaterial
               map={scene.front}
               clearcoat={1}
               clearcoatRoughness={0.25}
               roughness={0.55}
               metalness={0}
+              polygonOffset
+              polygonOffsetFactor={-1}
+              polygonOffsetUnits={-1}
             />
           </mesh>
           <mesh
             geometry={scene.face}
-            position={[0, 0, -thickness / 2 - 1e-4]}
+            position={[0, 0, -thickness / 2]}
             rotation={[0, Math.PI, 0]}
           >
             <meshPhysicalMaterial
@@ -350,11 +567,19 @@ export default function Lanyard({
               clearcoatRoughness={0.25}
               roughness={0.5}
               metalness={0}
+              polygonOffset
+              polygonOffsetFactor={-1}
+              polygonOffsetUnits={-1}
             />
           </mesh>
           <mesh geometry={scene.edge}>
-            <meshStandardMaterial attach="material-0" visible={false} />
-            <meshBasicMaterial attach="material-1" color={cardPalette.line} />
+            <meshBasicMaterial attach="material-0" visible={false} />
+            <meshStandardMaterial
+              attach="material-1"
+              color="#d8d5ce"
+              roughness={0.7}
+              metalness={0}
+            />
           </mesh>
           <group position={[0, ch / 2, 0]}>
             <mesh position={[0, 0.06, 0]}>
@@ -365,7 +590,7 @@ export default function Lanyard({
                 roughness={0.3}
               />
             </mesh>
-            <mesh position={[0, jointY - ch / 2 - 0.01, 0]}>
+            <mesh position={[0, clipTop - 0.01, 0]}>
               <torusGeometry args={[0.045, 0.014, 10, 24]} />
               <meshStandardMaterial
                 color="#c4c4c2"
@@ -374,13 +599,19 @@ export default function Lanyard({
               />
             </mesh>
           </group>
+          <mesh
+            geometry={scene.target}
+            onPointerDown={onPointerDown}
+            onPointerOver={() => setHovered(true)}
+            onPointerOut={() => setHovered(false)}
+          >
+            <meshBasicMaterial visible={false} side={THREE.DoubleSide} />
+          </mesh>
         </group>
       </RigidBody>
-      <mesh
-        geometry={scene.bandGeometry}
-        material={scene.band}
-        renderOrder={1}
-      />
+      <mesh geometry={scene.band} frustumCulled={false}>
+        <meshBasicMaterial map={scene.strap} side={THREE.DoubleSide} />
+      </mesh>
     </>
   );
 }

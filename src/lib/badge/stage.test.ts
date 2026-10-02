@@ -1,154 +1,151 @@
 import { describe, expect, it } from 'vitest';
 import {
-  canvasToWorld,
   cardWorldWidth,
-  clampDragTarget,
+  clampToFrustum,
+  clientToNdc,
   computeStage,
+  overhang,
+  screenToPlane,
+  worldToScreen,
   type StageInput,
 } from './stage';
 
 const card = { width: 220, height: 310, offsetTop: 192 };
 
-function desktop(width: number, currentLeft: number): StageInput {
+function desktop(width = 1440, height = 900): StageInput {
   return {
-    hero: { width, height: 900 },
-    anchor: { x: width * 0.54, y: 0 },
+    hero: { width, height },
+    badge: { x: width * 0.54, top: 0 },
     strapLength: 170,
+    bandWidth: 16,
     card,
     avoid: [
       { left: 40, top: 40, right: 258, bottom: 97 },
-      { left: currentLeft, top: 40, right: width - 40, bottom: 97 },
+      { left: width - 400, top: 40, right: width - 40, bottom: 97 },
     ],
   };
 }
 
-function intersects(
-  a: { left: number; top: number; width: number; height: number },
-  b: { left: number; top: number; right: number; bottom: number },
-): boolean {
-  return (
-    a.left < b.right &&
-    a.left + a.width > b.left &&
-    a.top < b.bottom &&
-    a.top + a.height > b.top
-  );
+function stacked(): StageInput {
+  return {
+    hero: { width: 375, height: 812 },
+    badge: { x: 187.5, top: 230 },
+    strapLength: 200,
+    bandWidth: 16,
+    card,
+    avoid: [
+      { left: 16, top: 16, right: 359, bottom: 120 },
+      { left: 16, top: 130, right: 359, bottom: 218 },
+    ],
+  };
 }
 
 describe('computeStage', () => {
-  it('hangs from the top edge when the text leaves enough room', () => {
-    const input = desktop(1920, 1570);
-    const stage = computeStage(input);
-    expect(stage.rect.top).toBe(0);
-    expect(stage.stub).toBe(0);
-    expect(stage.rect.height).toBe(900);
-    expect(stage.rect.left).toBeCloseTo(1036.8 - 330);
-    expect(stage.rect.left + stage.rect.width).toBeCloseTo(1036.8 + 330);
-    expect(stage.ropeLength).toBeCloseTo(170 / stage.pxPerUnit);
+  it('covers the whole hero', () => {
+    const stage = computeStage(desktop());
+    expect(stage.width).toBe(1440);
+    expect(stage.height).toBe(900);
   });
 
-  it('narrows a side to stay clear of nearby text', () => {
-    const input = desktop(1440, 1090);
-    const stage = computeStage(input);
-    expect(stage.rect.top).toBe(0);
-    expect(stage.rect.left + stage.rect.width).toBe(1090 - 12);
-    for (const rect of input.avoid) {
-      expect(intersects(stage.rect, rect)).toBe(false);
-    }
-  });
-
-  it('starts below the text when the gap is too narrow', () => {
-    const input = desktop(1024, 674);
-    const stage = computeStage(input);
-    expect(stage.rect.top).toBe(97 + 12);
-    expect(stage.stub).toBe(109);
-    expect(stage.rect.width).toBeCloseTo(660);
-    expect(stage.ropeLength).toBeCloseTo((170 - 109) / stage.pxPerUnit);
-    for (const rect of input.avoid) {
-      expect(intersects(stage.rect, rect)).toBe(false);
-    }
-  });
-
-  it('keeps a minimum rope when the text reaches the strap end', () => {
-    const input = desktop(1024, 674);
-    input.avoid[0]!.bottom = 300;
-    const stage = computeStage(input);
-    expect(stage.ropeLength * stage.pxPerUnit).toBeCloseTo(24);
-  });
-
-  it('stays within the hero on narrow stacked layouts', () => {
-    const stage = computeStage({
-      hero: { width: 375, height: 812 },
-      anchor: { x: 187.5, y: 230 },
-      strapLength: 200,
-      card,
-      avoid: [
-        { left: 16, top: 16, right: 359, bottom: 120 },
-        { left: 16, top: 130, right: 359, bottom: 218 },
-      ],
-    });
-    expect(stage.rect).toEqual({ left: 0, top: 230, width: 375, height: 582 });
-    expect(stage.stub).toBe(0);
-  });
-
-  it('starts below text that sits directly above the anchor', () => {
-    const stage = computeStage({
-      hero: { width: 900, height: 800 },
-      anchor: { x: 450, y: 0 },
-      strapLength: 170,
-      card,
-      avoid: [{ left: 400, top: 20, right: 500, bottom: 60 }],
-    });
-    expect(stage.rect.top).toBe(72);
-  });
-
-  it('maps the card to world units and fits the camera to the canvas', () => {
-    const stage = computeStage(desktop(1920, 1570));
+  it('maps the card to world units and fits the camera to the hero', () => {
+    const stage = computeStage(desktop());
     expect(stage.pxPerUnit).toBeCloseTo(220 / cardWorldWidth);
     expect(stage.card.width).toBeCloseTo(cardWorldWidth);
     expect(stage.card.height).toBeCloseTo(310 / stage.pxPerUnit);
     expect(stage.clipGap).toBeCloseTo(22 / stage.pxPerUnit);
+    expect(stage.bandWidth).toBeCloseTo(16 / stage.pxPerUnit);
     const visible =
       2 * stage.cameraZ * Math.tan(((stage.fov / 2) * Math.PI) / 180);
-    expect(visible * stage.pxPerUnit).toBeCloseTo(stage.rect.height);
-    expect(stage.anchor[0]).toBeCloseTo(0);
-    expect(stage.anchor[1]).toBeCloseTo(900 / 2 / stage.pxPerUnit);
+    expect(visible * stage.pxPerUnit).toBeCloseTo(900);
+  });
+
+  it('hangs the strap from above the hero when no text is in the way', () => {
+    const stage = computeStage(desktop());
+    const [x, y] = worldToScreen(stage, [...stage.anchor, 0]);
+    expect(x).toBeCloseTo(1440 * 0.54);
+    expect(y).toBeCloseTo(-overhang);
+    expect(stage.ropeLength * stage.pxPerUnit).toBeCloseTo(170 + overhang);
+  });
+
+  it('starts the strap at the badge when text sits above it', () => {
+    const stage = computeStage(stacked());
+    const [x, y] = worldToScreen(stage, [...stage.anchor, 0]);
+    expect(x).toBeCloseTo(187.5);
+    expect(y).toBeCloseTo(230);
+    expect(stage.ropeLength * stage.pxPerUnit).toBeCloseTo(200);
+  });
+
+  it('ignores text beside the strap or below the badge top', () => {
+    const input = desktop();
+    input.badge.top = 50;
+    input.avoid = [
+      { left: 0, top: 0, right: 760, bottom: 40 },
+      { left: 800, top: 0, right: 1440, bottom: 40 },
+      { left: 0, top: 60, right: 1440, bottom: 90 },
+    ];
+    const stage = computeStage(input);
+    const [, y] = worldToScreen(stage, [...stage.anchor, 0]);
+    expect(y).toBeCloseTo(-overhang);
+    expect(stage.ropeLength * stage.pxPerUnit).toBeCloseTo(170 + 50 + overhang);
   });
 });
 
-describe('canvasToWorld', () => {
-  const stage = computeStage(desktop(1920, 1570));
+describe('screen and world mapping', () => {
+  const stage = computeStage(desktop());
 
-  it('maps the canvas centre to the origin with y up', () => {
-    const { width, height } = stage.rect;
-    expect(canvasToWorld(stage, width / 2, height / 2)).toEqual([0, 0]);
-    const [x, y] = canvasToWorld(stage, width / 2 + 110, height / 2 + 55);
-    expect(x).toBeCloseTo(0.8);
-    expect(y).toBeCloseTo(-0.4);
+  it('maps the hero centre to the world origin', () => {
+    expect(screenToPlane(stage, [720, 450])).toEqual([0, 0, 0]);
+  });
+
+  it('maps pixels one to one on the card plane', () => {
+    const [x, y] = screenToPlane(stage, [720 + 137.5, 450 - 275]);
+    expect(x).toBeCloseTo(1);
+    expect(y).toBeCloseTo(2);
+  });
+
+  it('round trips through the camera on and off the card plane', () => {
+    for (const z of [0, 0.5, -1]) {
+      const point = screenToPlane(stage, [100, 800], z);
+      expect(point[2]).toBe(z);
+      const [px, py] = worldToScreen(stage, point);
+      expect(px).toBeCloseTo(100);
+      expect(py).toBeCloseTo(800);
+    }
+  });
+
+  it('shows nearer points farther from the centre', () => {
+    const [near] = worldToScreen(stage, [1, 0, 1]);
+    const [far] = worldToScreen(stage, [1, 0, 0]);
+    expect(near).toBeGreaterThan(far);
   });
 });
 
-describe('clampDragTarget', () => {
-  const stage = computeStage(desktop(1920, 1570));
-  const halfW = stage.rect.width / stage.pxPerUnit / 2;
-  const halfH = stage.rect.height / stage.pxPerUnit / 2;
-  const [ax, ay] = stage.anchor;
-  const reach = stage.ropeLength + stage.clipGap + stage.card.height / 2;
+describe('clampToFrustum', () => {
+  const stage = computeStage(desktop());
+  const halfW = 720 / stage.pxPerUnit;
+  const halfH = 450 / stage.pxPerUnit;
+  const margin = 12 / stage.pxPerUnit;
 
-  it('leaves a reachable target alone', () => {
-    const target: [number, number] = [ax + 0.3, ay - reach * 0.8];
-    expect(clampDragTarget(stage, target)).toEqual(target);
+  it('leaves points inside the visible hero alone', () => {
+    expect(clampToFrustum(stage, [1, -1], 12)).toEqual([1, -1]);
   });
 
-  it('keeps the card inside the canvas', () => {
-    const [x] = clampDragTarget(stage, [halfW * 5, ay - reach * 0.5]);
-    expect(x).toBeLessThanOrEqual(halfW - stage.card.width / 2);
-    const [, y] = clampDragTarget(stage, [ax, halfH * 5]);
-    expect(y).toBeLessThanOrEqual(halfH - stage.card.height / 2);
+  it('keeps points inside the visible hero minus a margin', () => {
+    const [x, y] = clampToFrustum(stage, [halfW * 3, -halfH * 3], 12);
+    expect(x).toBeCloseTo(halfW - margin);
+    expect(y).toBeCloseTo(-halfH + margin);
+    const [x2, y2] = clampToFrustum(stage, [-halfW * 3, halfH * 3], 12);
+    expect(x2).toBeCloseTo(-halfW + margin);
+    expect(y2).toBeCloseTo(halfH - margin);
   });
+});
 
-  it('lets the strap stretch only a little', () => {
-    const [x, y] = clampDragTarget(stage, [ax, ay - reach * 3]);
-    expect(x).toBeCloseTo(ax);
-    expect(ay - y).toBeCloseTo(reach * 1.12);
+describe('clientToNdc', () => {
+  const rect = { left: 10, top: -200, width: 400, height: 300 };
+
+  it('maps the element corners and centre', () => {
+    expect(clientToNdc([10, -200], rect)).toEqual([-1, 1]);
+    expect(clientToNdc([410, 100], rect)).toEqual([1, -1]);
+    expect(clientToNdc([210, -50], rect)).toEqual([0, 0]);
   });
 });

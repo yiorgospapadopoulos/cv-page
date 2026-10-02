@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { profile } from '../src/content/profile';
+import { grabPadding } from '../src/lib/badge/grab';
 import { hasWebGL } from './support';
 
 const { hero, about } = profile;
@@ -229,14 +230,23 @@ for (const motion of ['no-preference', 'reduce'] as const) {
       ]);
 
       if (threeD) {
-        const parts = [await box(page, '#badge-slot .badge-frame')];
-        if ((await page.locator('#badge-slot .badge-stub').count()) > 0) {
-          parts.push(await box(page, '#badge-slot .badge-stub'));
+        const [canvas, hero] = await Promise.all([
+          box(page, '#badge-slot canvas'),
+          box(page, 'header.hero'),
+        ]);
+        for (const key of ['x', 'y', 'width', 'height'] as const) {
+          expect(Math.abs(canvas[key] - hero[key])).toBeLessThan(1);
         }
-        for (const part of parts) {
-          expect(intersects(part, intro)).toBe(false);
-          expect(intersects(part, current)).toBe(false);
-        }
+        await page.waitForTimeout(4000);
+        const hit = await box(page, '#badge-slot .badge-hit');
+        const card = {
+          x: hit.x + grabPadding,
+          y: hit.y + grabPadding,
+          width: hit.width - 2 * grabPadding,
+          height: hit.height - 2 * grabPadding,
+        };
+        expect(intersects(card, intro)).toBe(false);
+        expect(intersects(card, current)).toBe(false);
       } else {
         const [strap, card] = await Promise.all([
           box(page, '#badge-slot .strap'),

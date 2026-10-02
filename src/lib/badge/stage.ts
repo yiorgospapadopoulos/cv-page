@@ -7,110 +7,111 @@ export interface Rect {
 
 export interface StageInput {
   hero: { width: number; height: number };
-  anchor: { x: number; y: number };
+  badge: { x: number; top: number };
   strapLength: number;
+  bandWidth: number;
   card: { width: number; height: number; offsetTop: number };
   avoid: Rect[];
 }
 
 export interface Stage {
-  rect: { left: number; top: number; width: number; height: number };
-  stub: number;
+  width: number;
+  height: number;
   pxPerUnit: number;
   anchor: [number, number];
   ropeLength: number;
   clipGap: number;
+  bandWidth: number;
   card: { width: number; height: number };
   cameraZ: number;
   fov: number;
 }
 
+export type Vec3 = [number, number, number];
+
 export const cardWorldWidth = 1.6;
-const margin = 12;
-const minRope = 24;
+export const overhang = 120;
 const cameraZ = 13;
-const stretch = 1.12;
+const strapMargin = 8;
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-function horizontalRoom(input: StageInput, top: number) {
-  const { hero, anchor, card } = input;
-  let left = clamp(anchor.x - card.width * 1.5, 0, hero.width);
-  let right = clamp(anchor.x + card.width * 1.5, 0, hero.width);
-  let blocked = false;
-  for (const r of input.avoid.filter((rect) => rect.bottom > top)) {
-    if (r.right + margin <= anchor.x) {
-      left = Math.max(left, r.right + margin);
-    } else if (r.left - margin >= anchor.x) {
-      right = Math.min(right, r.left - margin);
-    } else {
-      blocked = true;
-    }
-  }
-  const minSide = card.width * 1.25;
-  const tooNarrow =
-    anchor.x - left < Math.min(minSide, anchor.x) ||
-    right - anchor.x < Math.min(minSide, hero.width - anchor.x);
-  return { left, right, fits: !blocked && !tooNarrow };
+function textAbove(input: StageInput): boolean {
+  const { badge, bandWidth, avoid } = input;
+  const half = bandWidth / 2 + strapMargin;
+  return avoid.some(
+    (r) =>
+      r.top < badge.top && r.left < badge.x + half && r.right > badge.x - half,
+  );
 }
 
 export function computeStage(input: StageInput): Stage {
-  const { hero, anchor, card, strapLength } = input;
-  let top = anchor.y;
-  let room = horizontalRoom(input, top);
-  if (!room.fits) {
-    const below = input.avoid.filter((rect) => rect.bottom > top);
-    top = Math.max(...below.map((rect) => rect.bottom)) + margin;
-    room = horizontalRoom(input, top);
-  }
-  const width = room.right - room.left;
-  const height = hero.height - top;
-  const stub = top - anchor.y;
+  const { hero, badge, card, strapLength } = input;
   const pxPerUnit = card.width / cardWorldWidth;
+  const anchorY = textAbove(input) ? badge.top : -overhang;
   return {
-    rect: { left: room.left, top, width, height },
-    stub,
+    width: hero.width,
+    height: hero.height,
     pxPerUnit,
     anchor: [
-      (anchor.x - room.left - width / 2) / pxPerUnit,
-      height / 2 / pxPerUnit,
+      (badge.x - hero.width / 2) / pxPerUnit,
+      (hero.height / 2 - anchorY) / pxPerUnit,
     ],
-    ropeLength: Math.max(strapLength - stub, minRope) / pxPerUnit,
+    ropeLength: (strapLength + badge.top - anchorY) / pxPerUnit,
     clipGap: (card.offsetTop - strapLength) / pxPerUnit,
+    bandWidth: input.bandWidth / pxPerUnit,
     card: { width: cardWorldWidth, height: card.height / pxPerUnit },
     cameraZ,
-    fov: (2 * Math.atan(height / pxPerUnit / 2 / cameraZ) * 180) / Math.PI,
+    fov: (2 * Math.atan(hero.height / pxPerUnit / 2 / cameraZ) * 180) / Math.PI,
   };
 }
 
-export function canvasToWorld(
+function halfExtents(stage: Stage, z: number): [number, number] {
+  const halfH =
+    (stage.cameraZ - z) * Math.tan(((stage.fov / 2) * Math.PI) / 180);
+  return [(halfH * stage.width) / stage.height, halfH];
+}
+
+export function screenToPlane(
   stage: Stage,
-  x: number,
-  y: number,
-): [number, number] {
-  const { width, height } = stage.rect;
+  [px, py]: [number, number],
+  z = 0,
+): Vec3 {
+  const [halfW, halfH] = halfExtents(stage, z);
   return [
-    (x - width / 2) / stage.pxPerUnit,
-    (height / 2 - y) / stage.pxPerUnit,
+    ((px / stage.width) * 2 - 1) * halfW,
+    (1 - (py / stage.height) * 2) * halfH,
+    z,
   ];
 }
 
-export function clampDragTarget(
+export function worldToScreen(stage: Stage, [x, y, z]: Vec3): [number, number] {
+  const [halfW, halfH] = halfExtents(stage, z);
+  return [
+    ((x / halfW + 1) / 2) * stage.width,
+    ((1 - y / halfH) / 2) * stage.height,
+  ];
+}
+
+function clamp(value: number, limit: number): number {
+  return Math.min(limit, Math.max(-limit, value));
+}
+
+export function clampToFrustum(
   stage: Stage,
-  target: [number, number],
+  [x, y]: [number, number],
+  marginPx: number,
+  z = 0,
 ): [number, number] {
-  const [ax, ay] = stage.anchor;
-  const reach =
-    (stage.ropeLength + stage.clipGap + stage.card.height / 2) * stretch;
-  let [x, y] = target;
-  const distance = Math.hypot(x - ax, y - ay);
-  if (distance > reach) {
-    x = ax + ((x - ax) * reach) / distance;
-    y = ay + ((y - ay) * reach) / distance;
-  }
-  const halfW = stage.rect.width / stage.pxPerUnit / 2 - stage.card.width / 2;
-  const halfH = stage.rect.height / stage.pxPerUnit / 2 - stage.card.height / 2;
-  return [clamp(x, -halfW, halfW), clamp(y, -halfH, halfH)];
+  const [halfW, halfH] = halfExtents(stage, z);
+  const margin = marginPx / stage.pxPerUnit;
+  return [clamp(x, halfW - margin), clamp(y, halfH - margin)];
+}
+
+export function clientToNdc(
+  [x, y]: [number, number],
+  rect: { left: number; top: number; width: number; height: number },
+): [number, number] {
+  return [
+    ((x - rect.left) / rect.width) * 2 - 1,
+    1 - ((y - rect.top) / rect.height) * 2,
+  ];
 }

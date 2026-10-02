@@ -7,7 +7,6 @@ import {
   type ReactNode,
 } from 'react';
 import type { Badge as BadgeContent } from '../../content/types';
-import { cardPalette } from '../../lib/badge/cardLayout';
 import { shouldRender3D, supportsWebGL } from '../../lib/badge/capability';
 import {
   browserDeferDeps,
@@ -28,7 +27,6 @@ interface Layout {
   stage: Stage;
   slotX: number;
   slotY: number;
-  anchorX: number;
   bandWidth: number;
 }
 
@@ -72,11 +70,14 @@ function measureLayout(slot: HTMLElement, hero: HTMLElement): Layout | null {
   };
   const slotX = s.left - h.left;
   const slotY = s.top - h.top;
-  const anchorX = slotX + badge.offsetLeft + badge.offsetWidth / 2;
   const stage = computeStage({
     hero: { width: h.width, height: h.height },
-    anchor: { x: anchorX, y: slotY + badge.offsetTop },
+    badge: {
+      x: slotX + badge.offsetLeft + badge.offsetWidth / 2,
+      top: slotY + badge.offsetTop,
+    },
     strapLength: strap.offsetHeight,
+    bandWidth: strap.offsetWidth,
     card: {
       width: card.offsetWidth,
       height: card.offsetHeight,
@@ -84,7 +85,7 @@ function measureLayout(slot: HTMLElement, hero: HTMLElement): Layout | null {
     },
     avoid: [relative(intro), relative(current)],
   });
-  return { stage, slotX, slotY, anchorX, bandWidth: strap.offsetWidth };
+  return { stage, slotX, slotY, bandWidth: strap.offsetWidth };
 }
 
 interface Props {
@@ -99,6 +100,7 @@ export default function Badge({ badge, prompt }: Props) {
   const [mode, setMode] = useState<LoadMode>('idle');
   const [failed, setFailed] = useState(false);
   const [layout, setLayout] = useState<Layout | null>(null);
+  const [hero, setHero] = useState<HTMLElement | null>(null);
   const [scene, setScene] = useState<{
     Scene: SceneComponent;
     assets: BadgeAssets;
@@ -128,6 +130,7 @@ export default function Badge({ badge, prompt }: Props) {
     const slot = root.current?.closest<HTMLElement>('#badge-slot');
     const hero = slot?.closest<HTMLElement>('.hero');
     if (!enabled || failed || !slot || !hero) return;
+    setHero(hero);
     const update = () => setLayout(measureLayout(slot, hero));
     update();
     const observer = new ResizeObserver(update);
@@ -196,35 +199,23 @@ export default function Badge({ badge, prompt }: Props) {
       data-ready={shown || undefined}
       aria-hidden="true"
     >
-      {live && stage && stage.stub > 0 && (
-        <div
-          className="badge-stub"
-          style={{
-            left: layout.anchorX - layout.slotX - layout.bandWidth / 2,
-            top: stage.rect.top - stage.stub - layout.slotY,
-            width: layout.bandWidth,
-            height: stage.stub,
-            background: cardPalette.strap,
-          }}
-        />
-      )}
       {live && stage && (
         <div
           ref={frame}
           className="badge-frame"
           style={{
-            left: stage.rect.left - layout.slotX,
-            top: stage.rect.top - layout.slotY,
-            width: stage.rect.width,
-            height: stage.rect.height,
+            left: -layout.slotX,
+            top: -layout.slotY,
+            width: stage.width,
+            height: stage.height,
           }}
         >
-          {scene && (
+          {scene && hero && (
             <Boundary onError={fail}>
               <scene.Scene
                 stage={stage}
                 assets={scene.assets}
-                bandWidth={layout.bandWidth}
+                hero={hero}
                 active={onScreen && pageVisible}
                 onReady={markReady}
                 onLost={fail}
