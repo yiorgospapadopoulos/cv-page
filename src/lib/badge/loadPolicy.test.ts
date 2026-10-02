@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   readBadgeEnv,
-  wantsScrollSway,
+  wantsScrollTilt,
   wantsStaticBadge,
   type BadgeEnv,
 } from './loadPolicy';
@@ -76,18 +76,18 @@ describe('wantsStaticBadge', () => {
   });
 });
 
-describe('wantsScrollSway', () => {
-  it('sways only on touch-first devices without reduced motion', () => {
+describe('wantsScrollTilt', () => {
+  it('tilts only on touch-first devices without reduced motion', () => {
     const touch = { ...desktop, coarse: true, hoverNone: true };
-    expect(wantsScrollSway(touch)).toBe(true);
-    expect(wantsScrollSway({ ...touch, reducedMotion: true })).toBe(false);
-    expect(wantsScrollSway(desktop)).toBe(false);
-    expect(wantsScrollSway({ ...desktop, coarse: true })).toBe(false);
+    expect(wantsScrollTilt(touch)).toBe(true);
+    expect(wantsScrollTilt({ ...touch, reducedMotion: true })).toBe(false);
+    expect(wantsScrollTilt(desktop)).toBe(false);
+    expect(wantsScrollTilt({ ...desktop, coarse: true })).toBe(false);
   });
 
-  it('keeps swaying on a touch device that saves data', () => {
+  it('keeps tilting on a touch device that saves data', () => {
     expect(
-      wantsScrollSway({
+      wantsScrollTilt({
         ...desktop,
         coarse: true,
         hoverNone: true,

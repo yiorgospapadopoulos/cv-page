@@ -28,7 +28,7 @@ export function wantsStaticBadge(env: BadgeEnv): boolean {
   );
 }
 
-export function wantsScrollSway(env: BadgeEnv): boolean {
+export function wantsScrollTilt(env: BadgeEnv): boolean {
   return isTouchFirst(env) && !env.reducedMotion;
 }
 

@@ -11,10 +11,10 @@ import { supportsWebGL } from '../../lib/badge/capability';
 import { whenIdle } from '../../lib/badge/idle';
 import {
   readBadgeEnv,
-  wantsScrollSway,
+  wantsScrollTilt,
   wantsStaticBadge,
 } from '../../lib/badge/loadPolicy';
-import { createScrollSway, swayTransform } from '../../lib/badge/scrollSway';
+import { createScrollTilt } from '../../lib/badge/scrollTilt';
 import { computeStage, type Rect, type Stage } from '../../lib/badge/stage';
 import type { BadgeAssets } from './Lanyard';
 
@@ -94,7 +94,7 @@ export default function Badge({ badge, prompt }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const [enabled, setEnabled] = useState(false);
-  const [sway, setSway] = useState(false);
+  const [tilt, setTilt] = useState(false);
   const [failed, setFailed] = useState(false);
   const [layout, setLayout] = useState<Layout | null>(null);
   const [hero, setHero] = useState<HTMLElement | null>(null);
@@ -116,7 +116,7 @@ export default function Badge({ badge, prompt }: Props) {
     const update = () => {
       const env = readBadgeEnv(window, () => supportsWebGL(document));
       setEnabled(!wantsStaticBadge(env));
-      setSway(wantsScrollSway(env));
+      setTilt(wantsScrollTilt(env));
     };
     update();
     query.addEventListener('change', update);
@@ -127,28 +127,30 @@ export default function Badge({ badge, prompt }: Props) {
     const slot = root.current?.closest<HTMLElement>('#badge-slot');
     const card = slot?.querySelector<HTMLElement>('[data-badge]');
     const hero = slot?.closest<HTMLElement>('.hero');
-    if (!sway || !card || !hero) return;
-    const controller = createScrollSway({
-      now: () => performance.now(),
+    if (!tilt || !card || !hero) return;
+    const controller = createScrollTilt({
       scrollY: () => window.scrollY,
+      listen: (handler) => {
+        window.addEventListener('scroll', handler, { passive: true });
+        return () => window.removeEventListener('scroll', handler);
+      },
       requestFrame: (callback) => requestAnimationFrame(callback),
       cancelFrame: (handle) => cancelAnimationFrame(handle),
-      apply: (angle, lag) => {
-        card.style.transform = swayTransform(angle, lag);
+      apply: (angle) => {
+        card.style.transform = `rotate(${+angle.toFixed(2)}deg)`;
       },
     });
-    const onScroll = () => controller.onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    const observer = new IntersectionObserver(([entry]) =>
-      controller.setActive(entry?.isIntersecting ?? true),
+    const observer = new IntersectionObserver(
+      ([entry]) => controller.setActive(entry?.isIntersecting ?? true),
+      { rootMargin: '100% 0px' },
     );
     observer.observe(hero);
     return () => {
-      window.removeEventListener('scroll', onScroll);
       observer.disconnect();
-      controller.stop();
+      controller.setActive(false);
+      card.style.removeProperty('transform');
     };
-  }, [sway]);
+  }, [tilt]);
 
   useEffect(() => {
     const slot = root.current?.closest<HTMLElement>('#badge-slot');
