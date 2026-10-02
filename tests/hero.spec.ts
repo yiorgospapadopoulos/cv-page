@@ -55,6 +55,50 @@ test.describe('hero', () => {
     expect(right).toBeGreaterThan(innerWidth * 0.9);
   });
 
+  for (const width of [375, 390, 800, 1280, 1440]) {
+    test(`the giant name stays inside the viewport at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/');
+      const { box, ink, innerWidth } = await page.evaluate(async () => {
+        const spans = [...document.querySelectorAll('h1 span')];
+        const last = spans[spans.length - 1]!;
+        const style = getComputedStyle(last);
+        await document.fonts.load(
+          `${style.fontWeight} 100px ${style.fontFamily}`,
+        );
+        const size = parseFloat(style.fontSize);
+        const spacing = parseFloat(style.letterSpacing);
+
+        const box = Math.max(
+          ...spans.map((span) => {
+            const range = document.createRange();
+            range.selectNodeContents(span);
+            return range.getBoundingClientRect().right;
+          }),
+        );
+
+        const reference = 400;
+        const context = document.createElement('canvas').getContext('2d')!;
+        context.font = `${style.fontWeight} ${reference}px ${style.fontFamily}`;
+        const glyph = context.measureText(last.textContent!.slice(-1));
+        const overhang =
+          ((glyph.actualBoundingBoxRight - glyph.width) / reference) * size;
+        const range = document.createRange();
+        range.selectNodeContents(last);
+        const advanceEnd = range.getBoundingClientRect().right - spacing;
+        return {
+          box,
+          ink: advanceEnd + overhang,
+          innerWidth: window.innerWidth,
+        };
+      });
+      expect(box).toBeLessThanOrEqual(innerWidth - 1);
+      expect(ink).toBeLessThanOrEqual(innerWidth - 1);
+    });
+  }
+
   test('the hero fills the viewport height', async ({ page }) => {
     const heroHeight = await page
       .locator('header.hero')
