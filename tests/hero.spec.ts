@@ -295,3 +295,31 @@ test('the company stays together on narrow screens', async ({ page }) => {
     .evaluateAll((items) => items.map((el) => el.getClientRects().length));
   expect(orgHeights.every((count) => count === 1)).toBe(true);
 });
+
+test('the corner text sits lower and inward on wide screens', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const [intro, current] = await Promise.all([
+    box(page, '.intro'),
+    box(page, '.current'),
+  ]);
+  expect(intro.y).toBeGreaterThanOrEqual(72);
+  expect(intro.x).toBeGreaterThanOrEqual(80);
+  expect(1440 - (current.x + current.width)).toBeGreaterThanOrEqual(80);
+  const size = await page
+    .locator('.intro')
+    .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  expect(size).toBeGreaterThanOrEqual(15);
+});
+
+test('the corner text keeps a side gutter on phones', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto('/');
+  for (const selector of ['.intro', '.current']) {
+    const text = await box(page, selector);
+    expect(text.x).toBeGreaterThanOrEqual(16);
+    expect(320 - (text.x + text.width)).toBeGreaterThanOrEqual(16);
+  }
+});
