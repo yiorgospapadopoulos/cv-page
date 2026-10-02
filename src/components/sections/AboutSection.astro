@@ -1,33 +1,55 @@
 ---
 import { profile } from '../../content/profile';
 import { terminalSections } from '../../lib/terminal';
-import { ownerName } from '../../lib/site';
 import TerminalCommand from '../terminal/TerminalCommand.astro';
 import TerminalPart from '../terminal/TerminalPart.astro';
 
-const { hero, about } = profile;
+const { about } = profile;
 const [section] = terminalSections;
 ---
 
 <TerminalPart id={section.id} heading={section.heading}>
   <TerminalCommand command={section.command}>
-    <p class="name">{ownerName}</p>
-    <ul class="roles">
-      {hero.current.map((line) => (
-        <li>{line}</li>
+    <dl class="facts">
+      {about.facts.map((fact) => (
+        <div class="fact">
+          <dt>{fact.key}:</dt>
+          <dd>{fact.value}</dd>
+        </div>
       ))}
-    </ul>
-    {about.paragraphs.slice(1, 3).map((text) => (
-      <p>{text}</p>
-    ))}
+    </dl>
   </TerminalCommand>
 </TerminalPart>
 
 <style>
-  .name {
+  .facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.15em 2ch;
+    margin: 0;
+  }
+
+  .fact {
+    display: contents;
+  }
+
+  dt {
+    color: var(--term-accent);
+  }
+
+  dd {
+    margin: 0;
     color: var(--term-bright);
-    font-size: 1.25em;
-    font-weight: 700;
-    line-height: 1.35;
+  }
+
+  @media (max-width: 480px) {
+    .facts {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+
+    dd {
+      margin-bottom: 0.4em;
+    }
   }
 </style>
