@@ -21,9 +21,11 @@ export type Ctx2D = Pick<
 export interface StrapTile {
   text: string;
   font: string;
+  spacing: number;
   width: number;
   height: number;
   length: number;
+  label: number;
   background: string;
   color: string;
 }
@@ -84,14 +86,18 @@ export function strapTile(
 ): StrapTile {
   const text = strapLabel(label);
   const height = options.band * options.scale;
-  const font = `400 ${height / 2}px ${options.mono}`;
-  const width = Math.ceil(options.measure(text, font, 0));
+  const size = height / 2;
+  const font = `400 ${size}px ${options.mono}`;
+  const spacing = 0.04 * size;
+  const width = Math.ceil(options.measure(text, font, spacing));
   return {
     text,
     font,
+    spacing,
     width,
     height,
     length: width / options.scale,
+    label: options.measure(label, font, spacing) / options.scale,
     background: cardPalette.strap,
     color: cardPalette.backMuted,
   };
@@ -101,7 +107,7 @@ export function drawStrapTile(ctx: Ctx2D, tile: StrapTile): void {
   ctx.fillStyle = tile.background;
   ctx.fillRect(0, 0, tile.width, tile.height);
   ctx.font = tile.font;
-  setSpacing(ctx, 0);
+  setSpacing(ctx, tile.spacing);
   ctx.fillStyle = tile.color;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';

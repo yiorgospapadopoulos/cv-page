@@ -65,6 +65,7 @@ describe('computeStage', () => {
     expect(x).toBeCloseTo(1440 * 0.54);
     expect(y).toBeCloseTo(-overhang);
     expect(stage.ropeLength * stage.pxPerUnit).toBeCloseTo(170 + overhang);
+    expect(stage.strapVisible).toBe(170);
   });
 
   it('starts the strap at the badge when text sits above it', () => {
@@ -73,6 +74,7 @@ describe('computeStage', () => {
     expect(x).toBeCloseTo(187.5);
     expect(y).toBeCloseTo(230);
     expect(stage.ropeLength * stage.pxPerUnit).toBeCloseTo(200);
+    expect(stage.strapVisible).toBe(200);
   });
 
   it('ignores text beside the strap or below the badge top', () => {

@@ -20,6 +20,7 @@ export interface Stage {
   pxPerUnit: number;
   anchor: [number, number];
   ropeLength: number;
+  strapVisible: number;
   clipGap: number;
   bandWidth: number;
   card: { width: number; height: number };
@@ -56,6 +57,7 @@ export function computeStage(input: StageInput): Stage {
       (hero.height / 2 - anchorY) / pxPerUnit,
     ],
     ropeLength: (strapLength + badge.top - anchorY) / pxPerUnit,
+    strapVisible: strapLength,
     clipGap: (card.offsetTop - strapLength) / pxPerUnit,
     bandWidth: input.bandWidth / pxPerUnit,
     card: { width: cardWorldWidth, height: card.height / pxPerUnit },

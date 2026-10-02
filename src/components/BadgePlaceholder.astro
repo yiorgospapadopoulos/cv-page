@@ -46,7 +46,7 @@ const [roleHead, roleOrg] = badge.role.split(' @ ');
   }
 
   .badge {
-    --strap-length: 130px;
+    --strap-length: calc(168px * var(--card-scale));
     position: absolute;
     top: 0;
     left: 0;
@@ -226,10 +226,11 @@ const [roleHead, roleOrg] = badge.role.split(' @ ');
       position: relative;
       left: auto;
       display: flex;
-      flex: 1 1 auto;
+      flex: 1 1 0;
       justify-content: center;
       width: auto;
-      min-height: calc(76px + 332px * var(--card-scale));
+      /* Lets the card hang over most of the first name line when space is short. */
+      min-height: calc(36px + 500px * var(--card-scale) - 13cqw);
       padding: 12px 0 24px;
     }
 
@@ -241,8 +242,8 @@ const [roleHead, roleOrg] = badge.role.split(' @ ');
 
     .strap {
       flex: 1 1 0;
-      min-height: 40px;
-      max-height: 300px;
+      min-height: var(--strap-length);
+      max-height: 340px;
       height: auto;
     }
   }

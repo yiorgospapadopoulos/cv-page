@@ -107,12 +107,14 @@ describe('strapTile', () => {
       band: 16,
       scale: 4,
       mono: 'Mono',
-      measure: (text) => text.length * 10,
+      measure: (text, _font, spacing) => text.length * (10 + spacing),
     });
     expect(tile.height).toBe(64);
     expect(tile.font).toBe('400 32px Mono');
-    expect(tile.width).toBe(Math.ceil('abc  ·  '.length * 10));
+    expect(tile.spacing).toBeCloseTo(1.28);
+    expect(tile.width).toBe(Math.ceil('abc  ·  '.length * 11.28));
     expect(tile.length).toBe(tile.width / 4);
+    expect(tile.label).toBeCloseTo((3 * 11.28) / 4);
     expect(tile.text).toBe('abc  ·  ');
   });
 });
@@ -123,15 +125,17 @@ describe('drawStrapTile', () => {
     drawStrapTile(ctx, {
       text: 'abc  ·  ',
       font: '400 32px Mono',
+      spacing: 1.28,
       width: 80,
       height: 64,
       length: 20,
+      label: 8,
       background: '#141414',
       color: '#8b949e',
     });
     expect(calls).toEqual([
       'fillRect #141414 0 0 80 64',
-      'fillText abc  ·   0 32 400 32px Mono #8b949e left middle 0px',
+      'fillText abc  ·   0 32 400 32px Mono #8b949e left middle 1.28px',
     ]);
   });
 });
