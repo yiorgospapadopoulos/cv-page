@@ -2,7 +2,18 @@ import type { Profile } from '../content/types';
 import { mailto, ownerName } from './site';
 import { dotJoin, projectLabel } from './terminal';
 
-export type TextStyle = 'plain' | 'muted' | 'bright' | 'accent' | 'prompt';
+export type TextStyle =
+  | 'plain'
+  | 'muted'
+  | 'bright'
+  | 'accent'
+  | 'prompt'
+  | 'red'
+  | 'orange'
+  | 'yellow'
+  | 'green'
+  | 'blue'
+  | 'violet';
 
 export type Segment =
   | { text: string; style: TextStyle }
@@ -228,6 +239,109 @@ function kats(): CommandResult {
   };
 }
 
+const ink: Record<string, TextStyle> = {
+  r: 'red',
+  o: 'orange',
+  y: 'yellow',
+  g: 'green',
+  b: 'blue',
+  v: 'violet',
+  w: 'bright',
+  a: 'accent',
+  m: 'muted',
+};
+
+// Each row pairs the art with a colour mask of the same width; a mask
+// character picks the style of the art character above it (see `ink`), and
+// anything else, including a shorter mask, falls back to `base`.
+function paint(rows: Array<[string, string]>, base: TextStyle): OutputLine[] {
+  return rows.map(([art, mask]) => {
+    const line: Segment[] = [];
+    [...art].forEach((char, index) => {
+      const style = ink[mask[index] ?? ''] ?? base;
+      const last = line.at(-1);
+      if (last !== undefined && last.style === style) last.text += char;
+      else line.push(text(char, style));
+    });
+    return line;
+  });
+}
+
+const art =
+  (rows: Array<[string, string]>, base: TextStyle): Handler =>
+  () => ({
+    lines: paint(rows, base),
+  });
+
+const pdl = art(
+  [
+    ['  .-----.   .-----.', ''],
+    [' /       \\ /       \\', ''],
+    ['|(@)      |      (@)|', ' www              www'],
+    [' \\       / \\       /', ''],
+    ["  '-----'   '-----'", ''],
+  ],
+  'accent',
+);
+
+const pap = art(
+  [
+    ['              >>---->', '              wwwwwww'],
+    ['     .---.', '     rrrrr'],
+    ['    / .-. \\', '    r wwwww'],
+    ['   | ( o ) |', '   r w r w r'],
+    ["    \\ '-' /", '    r wwwww'],
+    ["     '---'", '     rrrrr'],
+    ['', ''],
+    [' _               _', ''],
+    ['| |__   __ _  __| |', ''],
+    ["| '_ \\ / _` |/ _` |", ''],
+    ['| |_) | (_| | (_| |', ''],
+    ['|_.__/ \\__,_|\\__,_|', ''],
+    ['       _', ''],
+    ['  __ _(_)_ __ ___', ''],
+    [" / _` | | '_ ` _ \\", ''],
+    ['| (_| | | | | | | |', ''],
+    [' \\__,_|_|_| |_| |_|', ''],
+  ],
+  'accent',
+);
+
+const pegkas = art(
+  [
+    ['             @ @ @', '             r r r'],
+    ['   .---.    @ @ @ @', '            r r r r'],
+    ['  /     \\    @ @ @', '             r r r'],
+    [' | ^   ^ |   \\\\|//', '             ggggg'],
+    [' |   v   |    \\|/', '              ggg'],
+    ['  \\ \\_/ /_____/|', '              yyg'],
+    ["   '---'       |", '               g'],
+  ],
+  'yellow',
+);
+
+const flag = (masks: string[]): Handler =>
+  art(
+    [
+      ...masks.map((mask): [string, string] => [
+        `|${'#'.repeat(mask.length - 1)}`,
+        mask,
+      ]),
+      ['|', ''],
+      ['|', ''],
+    ],
+    'muted',
+  );
+
+const mike = flag(
+  Array.from(
+    { length: 6 },
+    () => `m${'g'.repeat(6)}${'w'.repeat(6)}${'r'.repeat(6)}`,
+  ),
+);
+
+const rest = flag([...'roygbv'].map((colour) => `m${colour.repeat(18)}`));
+
 function hire(args: string[], profile: Profile, name: string): CommandResult {
   if (args.length > 0 && args.join(' ').toLowerCase() !== 'yiorgos') {
     return notFound(name);
@@ -268,6 +382,11 @@ const handlers = new Map<string, Handler>([
   ['sudo', sudo],
   ['hire', hire],
   ['kats', kats],
+  ['pdl', pdl],
+  ['pap', pap],
+  ['pegkas', pegkas],
+  ['mike', mike],
+  ['rest', rest],
 ]);
 
 export function runCommand(input: string, profile: Profile): CommandResult {

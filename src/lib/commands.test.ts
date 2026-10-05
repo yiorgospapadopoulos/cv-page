@@ -266,6 +266,78 @@ describe('easter eggs', () => {
     expect(action).toBeUndefined();
   });
 
+  const artWidth = (input: string) =>
+    Math.max(...out(input).map((row) => row.length));
+  const stylesOf = (line: OutputLine) =>
+    line.filter((segment) => segment.text.trim() !== '').map((s) => s.style);
+
+  it.each(['pdl', 'pap', 'pegkas', 'mike', 'rest'])(
+    'draws %s as hidden, case-insensitive art narrow enough for phones',
+    (name) => {
+      const result = run(name);
+      expect(result.lines.length).toBeGreaterThanOrEqual(5);
+      expect(artWidth(name)).toBeLessThanOrEqual(24);
+      expect(run(name.toUpperCase())).toEqual(result);
+      expect(result.action).toBeUndefined();
+      expect(profile.commands.some((command) => command.name === name)).toBe(
+        false,
+      );
+    },
+  );
+
+  it('draws pdl as two eyes looking in different directions', () => {
+    const pupils = out('pdl').find((row) => row.includes('(@)'))!;
+    const [left, right] = pupils.split(/(?<=\|)(?=\s)/);
+    expect(left!.trimEnd().startsWith('|(@)')).toBe(true);
+    expect(right!.trimEnd().endsWith('(@)|')).toBe(true);
+  });
+
+  it('draws pap as an arrow missing its target, then bad aim', () => {
+    const rows = out('pap');
+    const arrow = rows.findIndex((row) => row.includes('>>---->'));
+    const target = rows.findIndex((row) => row.includes('( o )'));
+    expect(arrow).toBeGreaterThanOrEqual(0);
+    expect(arrow).toBeLessThan(target);
+    expect(rows.join('\n')).toContain('| |__');
+    const bullseye = run('pap').lines[target]!;
+    expect(stylesOf(bullseye)).toContain('red');
+  });
+
+  it('draws pegkas as a smiling face holding out red roses on green stems', () => {
+    const lines = run('pegkas').lines;
+    const roses = lines.flat().filter((segment) => segment.text.includes('@'));
+    expect(roses.length).toBeGreaterThan(0);
+    expect(roses.every((segment) => segment.style === 'red')).toBe(true);
+    expect(
+      lines.flat().some((s) => s.text.includes('|') && s.style === 'green'),
+    ).toBe(true);
+    expect(plain(lines).join('\n')).toContain('\\_/');
+  });
+
+  it('draws mike as the Italian flag: green, white, red', () => {
+    const bands = run('mike').lines.filter((line) =>
+      line.some((segment) => segment.text.includes('#')),
+    );
+    expect(bands.length).toBeGreaterThanOrEqual(5);
+    for (const line of bands) {
+      expect(stylesOf(line)).toEqual(['muted', 'green', 'bright', 'red']);
+    }
+  });
+
+  it('draws rest as the rainbow pride flag, one colour per stripe', () => {
+    const stripes = run('rest')
+      .lines.filter((line) => line.some((s) => s.text.includes('#')))
+      .map((line) => stylesOf(line).at(-1));
+    expect(stripes).toEqual([
+      'red',
+      'orange',
+      'yellow',
+      'green',
+      'blue',
+      'violet',
+    ]);
+  });
+
   it('does not treat hire with another name as a command', () => {
     expect(out('hire someone')).toEqual([
       'command not found: hire. Type help to see what I can do.',

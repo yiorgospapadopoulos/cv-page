@@ -44,6 +44,12 @@ const styleClass: Record<TextStyle, string> = {
   bright: 't-bright',
   accent: 't-accent',
   prompt: 't-green',
+  red: 't-red',
+  orange: 't-orange',
+  yellow: 't-yellow',
+  green: 't-flag-green',
+  blue: 't-blue',
+  violet: 't-violet',
 };
 
 function isMailto(url: string): boolean {

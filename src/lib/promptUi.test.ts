@@ -82,13 +82,33 @@ describe('renderLine', () => {
       { text: ' accent', style: 'accent' },
       { text: ' prompt', style: 'prompt' },
       { text: ' plain', style: 'plain' },
+      { text: ' r', style: 'red' },
+      { text: ' o', style: 'orange' },
+      { text: ' y', style: 'yellow' },
+      { text: ' g', style: 'green' },
+      { text: ' b', style: 'blue' },
+      { text: ' v', style: 'violet' },
     ];
     const el = renderLine(document, line);
     expect(el.className).toBe('line');
     expect(el.innerHTML).not.toContain('<b>');
-    expect(el.textContent).toBe('<b>x</b> muted accent prompt plain');
+    expect(el.textContent).toBe(
+      '<b>x</b> muted accent prompt plain r o y g b v',
+    );
     const classes = [...el.children].map((child) => child.className);
-    expect(classes).toEqual(['t-bright', 't-muted', 't-accent', 't-green', '']);
+    expect(classes).toEqual([
+      't-bright',
+      't-muted',
+      't-accent',
+      't-green',
+      '',
+      't-red',
+      't-orange',
+      't-yellow',
+      't-flag-green',
+      't-blue',
+      't-violet',
+    ]);
   });
 
   it('renders an external link that opens in a new tab safely', () => {

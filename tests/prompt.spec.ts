@@ -143,6 +143,20 @@ test.describe('the live prompt', () => {
     );
     await enter(page, 'kats');
     await expect(log(page)).toContainText('(o) (o)');
+    await enter(page, 'pdl');
+    await expect(log(page)).toContainText('(@)');
+    await enter(page, 'pap');
+    await expect(log(page)).toContainText('>>---->');
+    await enter(page, 'pegkas');
+    await expect(log(page)).toContainText('@ @ @');
+    await enter(page, 'mike');
+    await enter(page, 'rest');
+    const stripes = log(page).locator('.line').filter({ hasText: '#' });
+    const colours = await stripes.evaluateAll((lines) =>
+      lines.map((line) => getComputedStyle(line.lastElementChild!).color),
+    );
+    expect(new Set(colours.slice(-6)).size).toBe(6);
+    expect(new Set(colours.slice(0, -6)).size).toBe(1);
     await enter(page, 'hire yiorgos');
     await expect(
       log(page).getByRole('link', { name: links.email }),

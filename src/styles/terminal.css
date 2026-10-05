@@ -14,6 +14,30 @@
   color: var(--term-prompt);
 }
 
+.t-red {
+  color: var(--term-red);
+}
+
+.t-orange {
+  color: var(--term-orange);
+}
+
+.t-yellow {
+  color: var(--term-yellow);
+}
+
+.t-flag-green {
+  color: var(--term-green);
+}
+
+.t-blue {
+  color: var(--term-blue);
+}
+
+.t-violet {
+  color: var(--term-violet);
+}
+
 .t-link {
   color: var(--term-accent);
   text-decoration: underline;
