@@ -203,6 +203,12 @@ function sudo(): CommandResult {
   return say('Nice try. But you can hire me instead: type email or cv.');
 }
 
+const bunny = [' (\\_/)', " (='.'=)", ' (")_(")'];
+
+function kats(): CommandResult {
+  return { lines: bunny.map((row) => [text(row, 'accent')]) };
+}
+
 function hire(args: string[], profile: Profile, name: string): CommandResult {
   if (args.length > 0 && args.join(' ').toLowerCase() !== 'yiorgos') {
     return notFound(name);
@@ -242,6 +248,7 @@ const handlers = new Map<string, Handler>([
   ['clear', clear],
   ['sudo', sudo],
   ['hire', hire],
+  ['kats', kats],
 ]);
 
 export function runCommand(input: string, profile: Profile): CommandResult {

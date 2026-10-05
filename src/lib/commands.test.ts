@@ -249,6 +249,18 @@ describe('easter eggs', () => {
     }
   });
 
+  it('draws a bunny for kats', () => {
+    const bunny = [' (\\_/)', " (='.'=)", ' (")_(")'];
+    expect(out('kats')).toEqual(bunny);
+    expect(out('KATS')).toEqual(bunny);
+    expect(
+      run('kats')
+        .lines.flat()
+        .every((s) => s.style === 'accent'),
+    ).toBe(true);
+    expect(run('kats').action).toBeUndefined();
+  });
+
   it('does not treat hire with another name as a command', () => {
     expect(out('hire someone')).toEqual([
       'command not found: hire. Type help to see what I can do.',
