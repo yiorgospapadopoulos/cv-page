@@ -249,16 +249,21 @@ describe('easter eggs', () => {
     }
   });
 
-  it('draws a bunny for kats', () => {
-    const bunny = [' (\\_/)', " (='.'=)", ' (")_(")'];
-    expect(out('kats')).toEqual(bunny);
-    expect(out('KATS')).toEqual(bunny);
+  it('draws a detailed bunny for kats, narrow enough for phones', () => {
+    const { lines, action } = run('kats');
+    const art = lines.slice(0, -1);
+    const caption = lines.at(-1)!;
+    expect(art.length).toBeGreaterThanOrEqual(10);
+    expect(plain(art).join('\n')).toContain('(o) (o)');
+    expect(art.flat().every((segment) => segment.style === 'accent')).toBe(
+      true,
+    );
     expect(
-      run('kats')
-        .lines.flat()
-        .every((s) => s.style === 'accent'),
-    ).toBe(true);
-    expect(run('kats').action).toBeUndefined();
+      Math.max(...plain(art).map((row) => row.length)),
+    ).toBeLessThanOrEqual(24);
+    expect(caption).toEqual([{ text: 'hop hop.', style: 'muted' }]);
+    expect(run('KATS')).toEqual(run('kats'));
+    expect(action).toBeUndefined();
   });
 
   it('does not treat hire with another name as a command', () => {

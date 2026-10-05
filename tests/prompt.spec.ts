@@ -142,7 +142,7 @@ test.describe('the live prompt', () => {
       'Nice try. But you can hire me instead: type email or cv.',
     );
     await enter(page, 'kats');
-    await expect(log(page)).toContainText(`(='.'=)`);
+    await expect(log(page)).toContainText('(o) (o)');
     await enter(page, 'hire yiorgos');
     await expect(
       log(page).getByRole('link', { name: links.email }),

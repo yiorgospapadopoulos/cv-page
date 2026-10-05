@@ -203,10 +203,29 @@ function sudo(): CommandResult {
   return say('Nice try. But you can hire me instead: type email or cv.');
 }
 
-const bunny = [' (\\_/)', " (='.'=)", ' (")_(")'];
+const bunny = [
+  ' .-.     .-.',
+  '/   \\   /   \\',
+  "| ' |   | ' |",
+  "| ' |   | ' |",
+  '\\   /   \\   /',
+  ' \\ /.---.\\ /',
+  "  .'     '.",
+  ' / (o) (o) \\',
+  '|  =  v  =  |',
+  " \\  '---'  /",
+  "  '._____.'",
+  '  /  | |  \\',
+  ' (___| |___)',
+];
 
 function kats(): CommandResult {
-  return { lines: bunny.map((row) => [text(row, 'accent')]) };
+  return {
+    lines: [
+      ...bunny.map((row) => [text(row, 'accent')]),
+      [text('hop hop.', 'muted')],
+    ],
+  };
 }
 
 function hire(args: string[], profile: Profile, name: string): CommandResult {
