@@ -144,11 +144,12 @@ test.describe('the live prompt', () => {
     await enter(page, 'kats');
     await expect(log(page)).toContainText('(o) (o)');
     await enter(page, 'pdl');
-    await expect(log(page)).toContainText('(@)');
+    await expect(log(page)).toContainText('#@@#');
     await enter(page, 'pap');
     await expect(log(page)).toContainText('>>---->');
     await enter(page, 'pegkas');
     await expect(log(page)).toContainText('@ @ @');
+    await enter(page, 'clear');
     await enter(page, 'mike');
     await enter(page, 'rest');
     const stripes = log(page).locator('.line').filter({ hasText: '#' });

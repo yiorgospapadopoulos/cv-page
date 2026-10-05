@@ -276,7 +276,8 @@ describe('easter eggs', () => {
     (name) => {
       const result = run(name);
       expect(result.lines.length).toBeGreaterThanOrEqual(5);
-      expect(artWidth(name)).toBeLessThanOrEqual(24);
+      // 32 monospace characters fit across the prompt on a 320px phone.
+      expect(artWidth(name)).toBeLessThanOrEqual(30);
       expect(run(name.toUpperCase())).toEqual(result);
       expect(result.action).toBeUndefined();
       expect(profile.commands.some((command) => command.name === name)).toBe(
@@ -285,11 +286,25 @@ describe('easter eggs', () => {
     },
   );
 
-  it('draws pdl as two eyes looking in different directions', () => {
-    const pupils = out('pdl').find((row) => row.includes('(@)'))!;
-    const [left, right] = pupils.split(/(?<=\|)(?=\s)/);
-    expect(left!.trimEnd().startsWith('|(@)')).toBe(true);
-    expect(right!.trimEnd().endsWith('(@)|')).toBe(true);
+  it('draws pdl as two big eyes both looking down towards the middle', () => {
+    const lines = run('pdl').lines;
+    expect(lines.length).toBeGreaterThanOrEqual(9);
+    const rows = plain(lines);
+    const row = rows.findIndex((r) => r.split('@@').length === 3);
+    expect(row).toBeGreaterThan(rows.length / 2);
+    const pupils = rows[row]!;
+    const quarter = pupils.length / 4;
+    const left = pupils.indexOf('@@');
+    const right = pupils.lastIndexOf('@@');
+    expect(left).toBeGreaterThan(quarter);
+    expect(left).toBeLessThan(2 * quarter);
+    expect(right).toBeGreaterThan(2 * quarter);
+    expect(right).toBeLessThan(3 * quarter);
+    expect(rows.filter((r) => r.includes('####')).length).toBe(2);
+    const iris = lines.flat().filter((segment) => segment.text.includes('#'));
+    expect(iris.every((segment) => segment.style === 'blue')).toBe(true);
+    const pupil = lines.flat().filter((segment) => segment.text.includes('@'));
+    expect(pupil.every((segment) => segment.style === 'bright')).toBe(true);
   });
 
   it('draws pap as an arrow missing its target, then bad aim', () => {
