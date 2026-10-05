@@ -53,5 +53,10 @@
     "audit": "npm audit --audit-level=high",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run audit && npm run test:coverage && npm run build",
     "deploy": "npm run check && npm run test:e2e && wrangler deploy"
+  },
+  "overrides": {
+    "eslint-plugin-astro": {
+      "astro-eslint-parser": "2.1.0"
+    }
   }
 }
