@@ -111,3 +111,7 @@ One-time setup on a new machine: `npx wrangler login` opens the browser to autho
 Publishing a change: `npm run deploy`. It runs every quality gate (`npm run check`, which builds) and every browser test (`npm run test:e2e`), and only then uploads `dist/` with `wrangler deploy`.
 
 Custom domain (one time, in the Cloudflare dashboard): Workers and Pages, project `yiorgospapadopoulos`, Settings, Domains and Routes, add `yiorgospapadopoulos.dev` as a custom domain. DNS and HTTPS are set up automatically because the domain is on Cloudflare. A redirect rule sends `www.yiorgospapadopoulos.dev` to `https://yiorgospapadopoulos.dev`.
+
+## License
+
+The code is under the [MIT license](LICENSE). The personal content (the text in `src/content/profile.ts`, the CV PDF, the social preview image and the badge artwork) is mine and not covered by it: reuse the code, not the CV.
